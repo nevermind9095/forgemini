@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>冒險者公會：冒險日誌 v6.7 (凱旋歸來版)</title>
+    <style>
+        /* * =========================================
+         * 全域設定
+         * =========================================
+         */
+        :root {
+            --bg-color: #2b1d0e;
+            --panel-bg: #f4e4bc;
+            --header-bg: #3e2723;
+            --text-color: #3e2723;
+            
+            --status-incomplete-bg: #ffcdd2;
+            --status-incomplete-border: #c62828;
+            --status-incomplete-text: #b71c1c;
+            
+            --status-complete-bg: #c8e6c9;
+            --status-complete-border: #2e7d32;
+            --status-complete-text: #1b5e20;
+            
+            --gold-accent: #ffb300;
+            --shadow-hard: 3px 3px 0px rgba(0,0,0,0.4);
+        }
+
+        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: "Microsoft JhengHei", "Heiti TC", sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                linear-gradient(45deg, #3e2723 25%, transparent 25%, transparent 75%, #3e2723 75%, #3e2723),
+                linear-gradient(45deg, #3e2723 25%, transparent 25%, transparent 75%, #3e2723 75%, #3e2723);
+            background-size: 60px 60px;
+            background-position: 0 0, 30px 30px;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            color: var(--text-color);
+        }
+
+        /* 導覽列 */
+        header {
+            background: var(--header-bg);
+            color: #ffecb3;
+            padding: 5px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 4px solid #1a100a;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.7);
+            z-index: 100;
+            flex-shrink: 0;
+            height: 60px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            text-shadow: 2px 2px 0 #000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            letter-spacing: 1px;
+        }
+        
+        #current-date-display {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            letter-spacing: 0;
+            font-size: 1rem;
+            color: #fff;
+            border: 1px solid #8d6e63;
+        }
+
+        #storage-indicator {
+            font-size: 0.8rem;
+            margin-left: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: normal;
+        }
+        .mode-local { background: #ff9800; color: #fff; }
+        .mode-cloud { background: #4caf50; color: #fff; }
+        .mode-error { background: #f44336; color: #fff; }
+
+        .nav-buttons { display: flex; gap: 8px; }
+
+        .rpg-btn {
+            background-color: #8d6e63;
+            border: 2px solid #1a100a;
+            color: #fff;
+            padding: 6px 12px;
+            font-size: 0.95rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: var(--shadow-hard);
+            transition: transform 0.1s;
+            border-radius: 4px;
+            text-shadow: 1px 1px 0 #000;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .rpg-btn:active { transform: translate(3px, 3px); box-shadow: 0 0 0 #000; }
+        .rpg-btn.active { background-color: #d84315; border-color: #ffcc80; color: #fff3e0; }
+
+        /* 主面板 */
+        #app-container {
+            flex: 1;
+            padding: 10px;
+            overflow: hidden; 
+            display: flex;
+            justify-content: center;
+            align-items: stretch; 
+        }
+
+        .panel {
+            background-color: var(--panel-bg);
+            width: 100%;
+            max-width: 1920px;
+            height: 100%;
+            border: 6px solid #5d4037;
+            border-radius: 8px;
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.2), 0 10px 30px rgba(0,0,0,0.8);
+            padding: 10px;
+            display: none;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* 裝飾鉚釘 */
+        .panel::after, .panel::before {
+            content: ''; position: absolute; width: 10px; height: 10px;
+            background: #3e2723; border-radius: 50%;
+            box-shadow: inset 1px 1px 3px rgba(255,255,255,0.4);
+            top: 6px;
+        }
+        .panel::after { right: 6px; }
+        .panel::before { left: 6px; }
+
+        .panel.show { display: flex; animation: popUp 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28); }
+        @keyframes popUp { from { transform: scale(0.98); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        /* =========================================
+         * Calendar View (月曆)
+         * =========================================
+         */
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 0 10px;
+        }
+        
+        .calendar-title {
+            font-size: 2rem;
+            font-weight: 900;
+            color: #3e2723;
+            text-shadow: 1px 1px 0 rgba(255,255,255,0.5);
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            grid-template-rows: 30px repeat(auto-fill, 1fr); /* Header + Days */
+            gap: 10px;
+            height: 100%;
+            overflow-y: auto;
+            padding: 5px;
+        }
+
+        .day-name {
+            text-align: center;
+            font-weight: bold;
+            color: #5d4037;
+            border-bottom: 2px solid #5d4037;
+        }
+
+        .calendar-cell {
+            background: rgba(255,255,255,0.5);
+            border: 2px solid #8d6e63;
+            border-radius: 6px;
+            padding: 5px;
+            min-height: 80px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .calendar-cell:hover {
+            background: #fff;
+            transform: translateY(-2px);
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            z-index: 2;
+        }
+
+        .calendar-cell.empty {
+            background: transparent;
+            border: none;
+            cursor: default;
+        }
+
+        .calendar-cell.today {
+            border: 3px solid var(--gold-accent);
+            background: #fff8e1;
+        }
+
+        .date-num {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        /* 月曆狀態標籤 */
+        .cal-status {
+            font-size: 0.8rem;
+            padding: 2px 4px;
+            border-radius: 4px;
+            margin-top: 2px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .cal-danger { background: #ffcdd2; color: #c62828; border: 1px solid #c62828; }
+        .cal-safe { background: #c8e6c9; color: #2e7d32; border: 1px solid #2e7d32; }
+        .cal-future { color: #999; font-style: italic; font-size: 0.8rem; }
+
+
+        /* =========================================
+         * 任務板樣式 (優化)
+         * =========================================
+         */
+        .quest-split-view { display: flex; flex-direction: column; height: 100%; gap: 10px; }
+        .quest-section { 
+            border: 3px solid rgba(93, 64, 55, 0.4); 
+            background: rgba(255,255,255,0.4); 
+            border-radius: 6px; 
+            padding: 10px 15px; 
+            display: flex; flex-direction: column; 
+            min-height: 0; 
+        }
+        .new-quest { flex: 2; }
+        .fix-quest { flex: 1; }
+        
+        .quest-title { 
+            font-size: 1.6rem; 
+            font-weight: 900; 
+            margin-bottom: 8px; 
+            padding-bottom: 4px; 
+            border-bottom: 3px dashed #5d4037; 
+            color: #3e2723; 
+            display: flex; align-items: center; gap: 10px; flex-shrink: 0; 
+        }
+        
+        .quest-list { list-style: none; padding: 0; margin: 0; flex: 1; overflow-y: auto; }
+        .quest-list li { 
+            padding: 8px 0; 
+            border-bottom: 1px solid rgba(0,0,0,0.1); 
+            display: flex; align-items: center; 
+            break-inside: avoid; 
+        }
+        
+        /* 新委託：三欄式 + 大字體 */
+        .new-quest .quest-list { 
+            column-count: 3;
+            column-gap: 30px; 
+            display: block; 
+            font-size: 2.2rem;
+            font-weight: bold;
+        }
+        .new-quest .quest-title { color: #1b5e20; border-color: #1b5e20; }
+        .new-quest .quest-list li::before { content: '🛡️'; margin-right: 10px; font-size: 1.8rem; }
+        .new-quest .quest-list li { color: #1b5e20; }
+        
+        /* 藍色提醒樣式 */
+        .new-quest .quest-list li.reminder-blue {
+            color: #0d47a1; /* 深藍色 */
+        }
+        .new-quest .quest-list li.reminder-blue::before {
+            content: '⚠️'; /* 替換圖示 */
+        }
+        
+        /* 訂正：三欄式 + 調整後字體 */
+        .fix-quest .quest-list { 
+            column-count: 3; /* 改為三欄 */
+            column-gap: 30px; 
+            display: block; 
+            font-size: 1.6rem; 
+            font-weight: bold;
+        }
+        .fix-quest .quest-title { color: #b71c1c; border-color: #b71c1c; }
+        .fix-quest .quest-list li::before { content: '👾'; margin-right: 8px; font-size: 1.4rem; }
+        .fix-quest .quest-list li { color: #b71c1c; }
+
+        /* =========================================
+         * 名冊樣式 (優化)
+         * =========================================
+         */
+        .roster-container { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); 
+            gap: 12px; 
+            padding-bottom: 5px; 
+            overflow-y: auto; 
+            flex: 1; 
+            align-content: start; 
+        }
+        
+        .group-card { background: #fff8e1; border: 2px solid #8d6e63; border-radius: 5px; box-shadow: 2px 2px 0 rgba(0,0,0,0.1); display: flex; flex-direction: column; transition: transform 0.1s; height: fit-content; }
+        .group-card:hover { border-color: #5d4037; z-index: 2; }
+        .group-card.drag-over { border: 2px solid var(--gold-accent); box-shadow: 0 0 15px var(--gold-accent); background: #fffde7; transform: scale(1.02); z-index: 10; }
+        .group-header { background: #5d4037; color: #fff; padding: 4px 8px; font-size: 1rem; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3e2723; height: 28px; pointer-events: none; }
+        .group-bonus { background: var(--gold-accent); color: #3e2723; padding: 1px 6px; border-radius: 10px; font-size: 0.8rem; font-weight: 900; border: 1px solid #fff; box-shadow: 0 0 5px var(--gold-accent); display: none; animation: shine 1.5s infinite alternate; }
+        @keyframes shine { from { filter: brightness(1); } to { filter: brightness(1.2); } }
+        .group-bonus.active { display: block; }
+        .student-list { padding: 3px 5px; flex: 1; display: flex; flex-direction: column; min-height: 50px; }
+        
+        .student-row { display: flex; align-items: center; margin-bottom: 2px; border-bottom: 1px dashed #ccc; padding-bottom: 2px; height: 30px; cursor: grab; transition: background-color 0.2s; }
+        .student-row:active { cursor: grabbing; }
+        .student-row:hover { background-color: rgba(0,0,0,0.03); }
+        .student-row:last-child { border-bottom: none; margin-bottom: 0; }
+        
+        .s-name { width: 64px; font-size: 1rem; font-weight: bold; color: #3e2723; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; margin-right: 4px; pointer-events: none; }
+        
+        /* 增加按鈕間距 */
+        .task-container { flex: 1; display: flex; gap: 6px; flex-wrap: nowrap; overflow: hidden; }
+        
+        .check-btn { 
+            flex: 1; min-width: 0; height: 26px; 
+            border: 1px solid var(--status-incomplete-border); 
+            background: var(--status-incomplete-bg); 
+            color: var(--status-incomplete-text); 
+            border-radius: 3px; 
+            font-weight: bold; 
+            font-size: 0.85rem; 
+            cursor: pointer; 
+            display: flex; align-items: center; justify-content: center; 
+            position: relative; padding: 0 1px; 
+        }
+        .check-btn:hover { filter: brightness(0.95); }
+        .check-btn span { 
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            width: 100%; 
+            text-align: center; 
+            padding: 0 1px; 
+            letter-spacing: 0; 
+            font-size: 0.85rem; 
+        }
+        .check-btn.completed { border-color: var(--status-complete-border); background: var(--status-complete-bg); color: var(--status-complete-text); }
+        .check-btn.completed::after { content: '魔物討伐'; font-weight: 900; font-size: 0.85rem; white-space: nowrap; overflow: hidden; letter-spacing: -1px; }
+        .check-btn.completed span { display: none; }
+        
+        /* 負傷名單 */
+        .danger-zone-card { background: #ffebee; border: 3px solid #b71c1c; box-shadow: 4px 4px 10px rgba(183, 28, 28, 0.3); display: flex; flex-direction: column; height: fit-content; }
+        .danger-zone-header { background: #b71c1c; color: #fff; padding: 4px 8px; font-size: 1.1rem; font-weight: 900; display: flex; align-items: center; justify-content: center; gap: 8px; height: 32px; border-bottom: 2px solid #7f0000; animation: pulse-red 2s infinite; }
+        @keyframes pulse-red { 0% { background-color: #b71c1c; } 50% { background-color: #c62828; } 100% { background-color: #b71c1c; } }
+        .danger-list { padding: 5px; flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; overflow-y: auto; max-height: 300px; }
+        @media (max-width: 800px) { .danger-list { grid-template-columns: 1fr 1fr; } }
+        .danger-item { background: #fff; border: 1px solid #ef9a9a; color: #b71c1c; padding: 0; border-radius: 4px; font-weight: bold; display: flex; justify-content: space-between; align-items: stretch; font-size: 0.9rem; height: 28px; overflow: hidden; }
+        .danger-item-name { padding: 0 6px; display: flex; align-items: center; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .danger-remove-btn { background: #ffcdd2; color: #c62828; border: none; border-left: 1px solid #ef9a9a; width: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: 900; transition: background 0.2s; outline: none; }
+        .danger-remove-btn:hover { background: #e57373; color: white; }
+        .danger-input-area { padding: 5px; border-top: 2px solid #ef9a9a; display: flex; gap: 5px; }
+        .danger-input { flex: 1; border: 1px solid #ef9a9a; border-radius: 3px; padding: 4px; font-size: 0.9rem; }
+        .danger-add-btn { background: #b71c1c; color: white; border: none; border-radius: 3px; font-weight: bold; cursor: pointer; padding: 0 10px; }
+
+        /* 設定頁面 */
+        .settings-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; flex: 1; min-height: 0; }
+        .input-card { background: rgba(255,255,255,0.6); padding: 10px; border-radius: 6px; border: 2px solid #8d6e63; display: flex; flex-direction: column; height: 100%; }
+        .input-card label { font-size: 1.1rem; margin-bottom: 5px; color: #3e2723; font-weight: bold; border-left: 4px solid #d84315; padding-left: 6px; }
+        .input-card textarea { flex: 1; width: 100%; border: 2px solid #ccc; border-radius: 4px; padding: 8px; font-size: 0.95rem; resize: none; background: #fffbf0; }
+        .toolbar { margin-top: 10px; display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0; }
+        .danger-btn { background-color: #ffebee; border-color: #c62828; color: #c62828; }
+
+        /* Toast */
+        #toast { visibility: hidden; min-width: 250px; background-color: rgba(40, 40, 40, 0.9); color: #fff; text-align: center; border-radius: 4px; padding: 12px; position: fixed; z-index: 2000; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 1rem; opacity: 0; transition: opacity 0.3s, bottom 0.3s; pointer-events: none; }
+        #toast.show { visibility: visible; opacity: 1; bottom: 50px; }
+        #toast.success { background-color: rgba(27, 94, 32, 0.95); }
+
+        /* Helper Class */
+        .hidden { display: none !important; }
+
+        /* 慶祝視窗樣式 (JRPG 風格) */
+        .celebration-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); /* 稍微加深 */
+            display: flex; justify-content: center; align-items: center;
+            z-index: 3000;
+            opacity: 0; visibility: hidden;
+            transition: all 0.5s;
+            backdrop-filter: blur(4px);
+        }
+        .celebration-overlay.active { opacity: 1; visibility: visible; }
+
+        /* 光芒背景動畫 */
+        .celebration-overlay::before {
+            content: '';
+            position: absolute;
+            width: 150vmax;
+            height: 150vmax;
+            background: conic-gradient(
+                from 0deg at 50% 50%, 
+                transparent 0deg, 
+                rgba(255, 223, 0, 0.2) 20deg, 
+                transparent 40deg, 
+                rgba(255, 223, 0, 0.2) 60deg, 
+                transparent 80deg, 
+                rgba(255, 223, 0, 0.2) 100deg, 
+                transparent 120deg, 
+                rgba(255, 223, 0, 0.2) 140deg, 
+                transparent 160deg, 
+                rgba(255, 223, 0, 0.2) 180deg, 
+                transparent 200deg, 
+                rgba(255, 223, 0, 0.2) 220deg, 
+                transparent 240deg, 
+                rgba(255, 223, 0, 0.2) 260deg, 
+                transparent 280deg, 
+                rgba(255, 223, 0, 0.2) 300deg, 
+                transparent 320deg, 
+                rgba(255, 223, 0, 0.2) 340deg, 
+                transparent 360deg
+            );
+            animation: rotate-bg 10s linear infinite;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        .celebration-overlay.active::before { opacity: 1; }
+
+        @keyframes rotate-bg {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        /* 捲軸風格視窗 */
+        .celebration-modal {
+            background: #fdf6e3;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100' opacity='0.05'%3E%3Cpath d='M0 0h100v100H0z' fill='%238b4513'/%3E%3C/svg%3E");
+            border: 6px double #8b4513;
+            border-radius: 10px;
+            padding: 40px 80px;
+            text-align: center;
+            box-shadow: 
+                0 0 0 4px #d4af37, /* 內金邊 */
+                0 0 0 8px #8b4513, /* 外框 */
+                0 10px 50px rgba(0,0,0,0.8);
+            transform: scale(0.5);
+            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            max-width: 90%;
+        }
+        .celebration-overlay.active .celebration-modal { transform: scale(1); }
+
+        /* 裝飾角落 */
+        .celebration-modal::after, .celebration-modal::before {
+            content: '❖';
+            position: absolute;
+            font-size: 2rem;
+            color: #d4af37;
+            top: 10px;
+        }
+        .celebration-modal::before { left: 15px; }
+        .celebration-modal::after { right: 15px; }
+
+        .celebration-icon { 
+            font-size: 6rem; 
+            margin-bottom: 15px; 
+            animation: float-icon 2s ease-in-out infinite; 
+            text-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        /* 經典遊戲字體風格 */
+        .celebration-title { 
+            font-size: 3.5rem; 
+            font-weight: 900; 
+            color: #ffd700; 
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 15px; 
+            /* 模擬金屬質感文字 */
+            background: linear-gradient(to bottom, #fff7cc 0%, #ffd700 50%, #b8860b 51%, #d4af37 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(2px 2px 0px #5d4037);
+            font-family: "Arial Black", "Heiti TC", sans-serif;
+        }
+
+        .celebration-subtitle { 
+            font-size: 1.8rem; 
+            font-weight: bold; 
+            color: #5d4037; 
+            border-top: 2px solid #d4af37;
+            border-bottom: 2px solid #d4af37;
+            padding: 10px 0;
+            display: inline-block;
+            min-width: 300px;
+        }
+        
+        @keyframes float-icon {
+            0%, 100% {transform: translateY(0);}
+            50% {transform: translateY(-15px);}
+        }
+        
+        .close-celebration {
+            position: absolute; top: -25px; right: -25px;
+            font-size: 1.5rem; cursor: pointer; 
+            color: #fff; background: #b71c1c;
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+        .close-celebration:hover { background: #ff5252; transform: scale(1.1); }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>
+            🛡️ 冒險者公會 
+            <span id="current-date-display" class="hidden"></span>
+            <span id="storage-indicator" class="mode-local">本地模式</span>
+        </h1>
+        <div class="nav-buttons" id="day-nav-buttons" style="display:none;">
+            <!-- 修改 1: 按鈕文字變更，並加入音效 -->
+            <button class="rpg-btn" onclick="Sound.play('click'); showCalendar()">📖 回到冒險者日誌</button>
+            <button class="rpg-btn active" onclick="Sound.play('click'); switchView('quest-board')">📜 委託清單</button>
+            <button class="rpg-btn" onclick="Sound.play('click'); switchView('adventurer-roster')">👥 冒險者名冊</button>
+            <button class="rpg-btn" onclick="Sound.play('click'); switchView('settings')">⚙️ 設定</button>
+        </div>
+    </header>
+
+    <div id="app-container">
+        
+        <!-- 頁面 0: 冒險日誌 (月曆) -->
+        <div id="calendar-view" class="panel show">
+            <div class="calendar-header">
+                <div class="calendar-title" id="cal-month-title">2023 年 11 月</div>
+                <div class="nav-buttons">
+                    <button class="rpg-btn" onclick="Sound.play('click'); changeMonth(-1)">◀ 上個月</button>
+                    <button class="rpg-btn" onclick="Sound.play('click'); goToToday()">回到今天</button>
+                    <button class="rpg-btn" onclick="Sound.play('click'); changeMonth(1)">下個月 ▶</button>
+                </div>
+            </div>
+            <div id="calendar-grid" class="calendar-grid">
+                <!-- JS 生成月曆 -->
+            </div>
+        </div>
+
+        <!-- 頁面 1: 公會委託清單 -->
+        <div id="quest-board" class="panel">
+            <div class="quest-split-view">
+                <div class="quest-section new-quest">
+                    <div class="quest-title">📜 本日發布新委託</div>
+                    <ul id="hw-write-list" class="quest-list"><li>載入中...</li></ul>
+                </div>
+                <div class="quest-section fix-quest">
+                    <!-- 確認移除 (訂正) -->
+                    <div class="quest-title">⚔️ 剩餘魔物討伐</div>
+                    <ul id="hw-correct-list" class="quest-list"><li>載入中...</li></ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 頁面 2: 冒險者名冊 (Zero Scroll) -->
+        <div id="adventurer-roster" class="panel">
+            <div id="roster-container" class="roster-container"></div>
+        </div>
+
+        <!-- 頁面 3: 設定 -->
+        <div id="settings" class="panel">
+            <div class="settings-grid">
+                <div class="input-card">
+                    <label>冒險者名冊 (全域設定)</label>
+                    <textarea id="input-students" placeholder="王小明, 第一組&#10;李小華, 第一組"></textarea>
+                </div>
+                
+                <!-- 這裡會顯示目前操作的日期，避免混淆 -->
+                <div class="input-card">
+                    <label>發布委託 (<span id="setting-date-label">本日</span>)<br><small style="color:#d84315; font-weight:normal;">(前方加 * 可變藍色提醒)</small></label>
+                    <textarea id="input-hw-write" placeholder="*補帶美勞用具&#10;國語 L5 生字"></textarea>
+                </div>
+                <div class="input-card">
+                    <label>魔物討伐 (<span id="setting-date-label-2">本日</span>)</label>
+                    <textarea id="input-hw-correct" placeholder="數學習作 P.28&#10;國語聽寫訂正"></textarea>
+                </div>
+
+                <!-- 新增：資料備份與還原 -->
+                <div class="input-card" style="grid-column: span 3;">
+                    <label>資料備份與還原</label>
+                    <div style="display: flex; gap: 10px; padding-top: 10px;">
+                        <button class="rpg-btn" onclick="Sound.play('click'); exportData()">📤 匯出備份檔案</button>
+                        <button class="rpg-btn" onclick="Sound.play('click'); document.getElementById('import-file').click()">📥 匯入備份檔案</button>
+                        <input type="file" id="import-file" style="display:none" onchange="importData(this)">
+                    </div>
+                    <p style="color:#666; font-size:0.9rem; margin-top:10px; font-weight:bold;">
+                        ※ 支援：1. 本機執行時自動存於瀏覽器。 2. 線上分享時自動存於雲端。 3. 手動備份JSON檔。
+                    </p>
+                </div>
+            </div>
+            <div class="toolbar">
+                <button class="rpg-btn danger-btn" onclick="Sound.play('cancel'); clearAllData()">⚠️ 重置系統</button>
+                <button class="rpg-btn" style="background-color:#c8e6c9; border-color:#2e7d32; color:#1b5e20;" onclick="Sound.play('success'); saveSettings()">💾 儲存設定</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 慶祝彩蛋 (更新為日系 RPG 風格) -->
+    <div id="celebration-overlay" class="celebration-overlay" onclick="closeCelebration()">
+        <div class="celebration-modal" onclick="event.stopPropagation()">
+            <div class="close-celebration" onclick="closeCelebration()">×</div>
+            <div class="celebration-icon">🏆</div>
+            <div class="celebration-title">QUEST CLEAR</div>
+            <div class="celebration-subtitle">恭喜！今日全員討伐完畢</div>
+        </div>
+    </div>
+
+    <!-- 訊息提示框 -->
+    <div id="toast">訊息</div>
+
+    <!-- 基礎邏輯 Script (本地優先) -->
+    <script>
+        // ================= 音效系統 (Web Audio API) =================
+        const Sound = {
+            ctx: null,
+            init: function() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContext) {
+                        this.ctx = new AudioContext();
+                    }
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            },
+            play: function(type) {
+                this.init();
+                if (!this.ctx) return;
+
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                if (type === 'click') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(400, t);
+                    osc.frequency.exponentialRampToValueAtTime(100, t + 0.1);
+                    gain.gain.setValueAtTime(0.1, t);
+                    gain.gain.linearRampToValueAtTime(0, t + 0.1);
+                    osc.start(t);
+                    osc.stop(t + 0.1);
+                } else if (type === 'success') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(880, t);
+                    osc.frequency.linearRampToValueAtTime(1760, t + 0.1);
+                    gain.gain.setValueAtTime(0.05, t);
+                    gain.gain.linearRampToValueAtTime(0, t + 0.3);
+                    osc.start(t);
+                    osc.stop(t + 0.3);
+                } else if (type === 'cancel') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, t);
+                    osc.frequency.linearRampToValueAtTime(100, t + 0.1);
+                    gain.gain.setValueAtTime(0.05, t);
+                    gain.gain.linearRampToValueAtTime(0, t + 0.15);
+                    osc.start(t);
+                    osc.stop(t + 0.15);
+                } else if (type === 'victory') {
+                    // 勝利音效 - 升級版 Fanfare
+                    const now = t;
+                    const playNote = (freq, startTime, duration, type = 'square') => {
+                        const o = this.ctx.createOscillator();
+                        const g = this.ctx.createGain();
+                        o.connect(g);
+                        g.connect(this.ctx.destination);
+                        o.type = type;
+                        o.frequency.value = freq;
+                        
+                        // ADSR envelope approximation
+                        g.gain.setValueAtTime(0.01, startTime);
+                        g.gain.linearRampToValueAtTime(0.1, startTime + 0.05); // Attack
+                        g.gain.exponentialRampToValueAtTime(0.08, startTime + 0.1); // Decay
+                        g.gain.setValueAtTime(0.08, startTime + duration - 0.05); // Sustain
+                        g.gain.exponentialRampToValueAtTime(0.001, startTime + duration); // Release
+
+                        o.start(startTime);
+                        o.stop(startTime + duration);
+                    };
+
+                    // RPG Victory Fanfare Melody (approximate)
+                    // Triplets intro: C5 C5 C5
+                    playNote(523.25, now + 0.0, 0.1);
+                    playNote(523.25, now + 0.15, 0.1);
+                    playNote(523.25, now + 0.3, 0.1);
+                    
+                    // Main Theme: C5 -> Ab4 -> Bb4 -> C5 -> Bb4 -> C5 (Held)
+                    playNote(523.25, now + 0.45, 0.4);  // C5
+                    playNote(415.30, now + 0.85, 0.4);  // Ab4
+                    playNote(466.16, now + 1.25, 0.4);  // Bb4
+                    
+                    playNote(523.25, now + 1.65, 0.2);  // C5
+                    playNote(466.16, now + 1.85, 0.2);  // Bb4
+                    playNote(523.25, now + 2.05, 1.5);  // C5 (Held)
+
+                    // Harmony (Thirds below)
+                    playNote(329.63, now + 0.45, 0.4, 'triangle'); // E4
+                    playNote(261.63, now + 0.85, 0.4, 'triangle'); // C4
+                    playNote(293.66, now + 1.25, 0.4, 'triangle'); // D4
+                    playNote(329.63, now + 2.05, 1.5, 'triangle'); // E4 (Held)
+                }
+            }
+        };
+
+        document.body.addEventListener('click', () => Sound.init(), { once: true });
+
+        // ================= 資料結構 =================
+        // 預設資料改為全域變數 window.appData 以確保模組存取一致
+        const defaultStudents = [
+            { name: "王小明", group: "第一組" }, { name: "李小華", group: "第一組" },
+            { name: "張小美", group: "第二組" }, { name: "陳大文", group: "第二組" },
+            { name: "林小宏", group: "第三組" }, { name: "黃小芬", group: "第三組" },
+            { name: "陳小明", group: "第四組" }, { name: "李大華", group: "第四組" },
+            { name: "王大明", group: "第五組" }, { name: "蔡小虎", group: "第五組" },
+            { name: "陳大明", group: "第六組" }, { name: "張大華", group: "第六組" },
+            { name: "林大明", group: "第七組" }, { name: "黃大華", group: "第七組" }
+        ];
+
+        window.appData = {
+            students: defaultStudents,
+            records: {}
+        };
+
+        let currentDate = ""; 
+        let viewMonth = new Date(); 
+        let hasCelebrated = false; // 防止重複慶祝
+
+        // ================= 核心功能 =================
+        function init() {
+            // 1. 先嘗試讀取本地 (這是預設，確保畫面不白屏)
+            loadDataLocal();
+            
+            // 2. 設定日期
+            const today = new Date();
+            const y = today.getFullYear();
+            const m = (today.getMonth() + 1).toString().padStart(2, '0');
+            const d = today.getDate().toString().padStart(2, '0');
+            const todayStr = `${y}-${m}-${d}`;
+
+            // 3. 嘗試還原狀態
+            const lastView = localStorage.getItem('rpg_last_view');
+            const lastDate = localStorage.getItem('rpg_last_date');
+
+            if (lastDate) {
+                currentDate = lastDate;
+            } else {
+                currentDate = todayStr;
+                getDateRecord(todayStr);
+            }
+
+            if (lastView && lastView !== 'calendar-view') {
+                openDate(currentDate, false);
+                switchView(lastView);
+            } else {
+                renderCalendar();
+                showCalendar();
+            }
+        }
+
+        function loadDataLocal() {
+            const saved = localStorage.getItem('rpgClassManager_v6') || localStorage.getItem('rpgClassManager_v5');
+            if (saved) {
+                try {
+                    window.appData = JSON.parse(saved);
+                    if (!window.appData.records) window.appData.records = {};
+                    if (!window.appData.students) window.appData.students = defaultStudents;
+                } catch(e) {
+                    console.error("Local load failed", e);
+                    window.appData = { students: defaultStudents, records: {} };
+                }
+            }
+        }
+
+        // 預設的儲存函式 (會被雲端模組覆蓋)
+        window.saveData = function() {
+            try {
+                localStorage.setItem('rpgClassManager_v6', JSON.stringify(window.appData));
+                localStorage.setItem('rpgClassManager_v5', JSON.stringify(window.appData)); // 向下相容
+            } catch (e) {
+                console.error("Local save failed", e);
+            }
+        };
+
+        // 讓模組呼叫的更新介面函式
+        window.refreshUI = function() {
+            // 根據當前畫面刷新
+            const currentView = document.querySelector('.panel.show').id;
+            if (currentView === 'calendar-view') {
+                renderCalendar();
+            } else {
+                renderCalendar(); // 背景刷新
+                if(currentView === 'quest-board') renderQuestBoard();
+                if(currentView === 'adventurer-roster') renderRoster();
+                if(currentView === 'settings') renderSettingsInputs();
+            }
+        };
+
+        // 資料操作函式
+        function getDateRecord(dateStr) {
+            if (!dateStr) return { hwWrite: [], hwCorrect: [], status: {}, dangerList: [] };
+            
+            if (!window.appData.records[dateStr]) {
+                window.appData.records[dateStr] = {
+                    hwWrite: [],
+                    hwCorrect: [],
+                    status: {},
+                    dangerList: []
+                };
+                
+                // 繼承上一日
+                const yesterday = new Date(dateStr);
+                yesterday.setDate(yesterday.getDate() - 1);
+                const yStr = yesterday.toISOString().split('T')[0];
+                
+                if (window.appData.records[yStr] && window.appData.records[yStr].dangerList.length > 0) {
+                    window.appData.records[dateStr].dangerList = [...window.appData.records[yStr].dangerList];
+                }
+            }
+            return window.appData.records[dateStr];
+        }
+
+        // ... (以下為 UI 渲染函式: renderCalendar, renderQuestBoard, renderRoster, renderSettingsInputs) ...
+        // 為了節省篇幅，這些邏輯與 v6.1 相同，但必須完整保留在檔案中
+
+        function renderCalendar() {
+            const grid = document.getElementById('calendar-grid');
+            if(!grid) return;
+            grid.innerHTML = '';
+            
+            const year = viewMonth.getFullYear();
+            const month = viewMonth.getMonth();
+            
+            document.getElementById('cal-month-title').textContent = `${year} 年 ${month + 1} 月`;
+
+            const days = ['日', '一', '二', '三', '四', '五', '六'];
+            days.forEach(d => {
+                const div = document.createElement('div');
+                div.className = 'day-name';
+                div.textContent = d;
+                grid.appendChild(div);
+            });
+
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const totalDays = lastDay.getDate();
+            const startDay = firstDay.getDay();
+
+            for (let i = 0; i < startDay; i++) {
+                const div = document.createElement('div');
+                div.className = 'calendar-cell empty';
+                grid.appendChild(div);
+            }
+
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            for (let i = 1; i <= totalDays; i++) {
+                const mStr = (month + 1).toString().padStart(2, '0');
+                const dStr = i.toString().padStart(2, '0');
+                const dateStr = `${year}-${mStr}-${dStr}`;
+                
+                const cell = document.createElement('div');
+                cell.className = 'calendar-cell';
+                if (dateStr === todayStr) cell.classList.add('today');
+                
+                let html = `<div class="date-num">${i}</div>`;
+                
+                if (window.appData.records[dateStr]) {
+                    const rec = window.appData.records[dateStr];
+                    const hasTasks = rec.hwCorrect.length > 0;
+                    
+                    if (hasTasks) {
+                        let allDone = true;
+                        window.appData.students.forEach((s, sIdx) => {
+                           rec.hwCorrect.forEach((_, hIdx) => {
+                               if (!rec.status[`${sIdx}_${hIdx}`]) allDone = false;
+                           }); 
+                        });
+                        if (rec.dangerList.length > 0) allDone = false;
+
+                        if (allDone) {
+                            html += `<div class="cal-status cal-safe">★ 全員討伐 ★</div>`;
+                        } else {
+                            const remaining = rec.dangerList.length;
+                            html += `<div class="cal-status cal-danger">⚠️ 未完成</div>`;
+                            if(remaining > 0) html += `<div style="font-size:0.8rem; color:#c62828;">${remaining} 人負傷</div>`;
+                        }
+                    } else if (rec.hwWrite.length > 0) {
+                         html += `<div class="cal-status" style="color:#555;">僅發布委託</div>`;
+                    }
+                }
+
+                cell.innerHTML = html;
+                cell.onclick = () => { Sound.play('click'); openDate(dateStr); };
+                grid.appendChild(cell);
+            }
+        }
+
+        function renderQuestBoard() {
+            const rec = getDateRecord(currentDate);
+            const writeList = document.getElementById('hw-write-list');
+            writeList.innerHTML = rec.hwWrite.length ? '' : '<li>本日無新委託！</li>';
+            
+            // V6.5 藍色提醒實作
+            rec.hwWrite.forEach(hw => {
+                const li = document.createElement('li');
+                if(hw.startsWith('*')) {
+                    li.textContent = hw.substring(1); // 去掉星號
+                    li.className = 'reminder-blue';
+                } else {
+                    li.textContent = hw;
+                }
+                writeList.appendChild(li);
+            });
+
+            const correctList = document.getElementById('hw-correct-list');
+            correctList.innerHTML = rec.hwCorrect.length ? '' : '<li>目前非常安全</li>';
+            rec.hwCorrect.forEach(hw => {
+                const li = document.createElement('li');
+                li.textContent = hw;
+                correctList.appendChild(li);
+            });
+        }
+
+        function renderRoster() {
+            const rec = getDateRecord(currentDate);
+            const container = document.getElementById('roster-container');
+            container.innerHTML = '';
+
+            if (window.appData.students.length === 0) {
+                container.innerHTML = '<div style="padding:20px; font-size:1.2rem; color:#8d6e63;">公會名冊空白，請至「設定」招募冒險者。</div>';
+                return;
+            }
+
+            const groups = {};
+            window.appData.students.forEach((s, index) => {
+                const gName = s.group || '未分組';
+                if (!groups[gName]) groups[gName] = [];
+                groups[gName].push({ ...s, originalIndex: index });
+            });
+
+            const groupNames = Object.keys(groups).sort((a, b) => {
+                if(a === '未分組') return 1;
+                if(b === '未分組') return -1;
+                return a.localeCompare(b, 'zh-TW', { numeric: true }); 
+            });
+
+            groupNames.forEach(gName => {
+                const groupStudents = groups[gName];
+                const card = document.createElement('div');
+                card.className = 'group-card';
+                
+                card.ondragover = (e) => { e.preventDefault(); card.classList.add('drag-over'); };
+                card.ondragleave = (e) => { card.classList.remove('drag-over'); };
+                card.ondrop = (e) => {
+                    e.preventDefault(); card.classList.remove('drag-over');
+                    const studentIndex = e.dataTransfer.getData('text/plain');
+                    if (studentIndex !== "") moveStudentToGroup(studentIndex, gName);
+                };
+
+                let isGroupAllClear = true;
+                if(rec.hwCorrect.length === 0) isGroupAllClear = false;
+
+                groupStudents.forEach(s => {
+                    rec.hwCorrect.forEach((_, hwIndex) => {
+                        const key = `${s.originalIndex}_${hwIndex}`;
+                        if (!rec.status[key]) isGroupAllClear = false;
+                    });
+                });
+
+                const header = document.createElement('div');
+                header.className = 'group-header';
+                header.innerHTML = `<span>${gName}</span><span class="group-bonus ${isGroupAllClear ? 'active' : ''}">小隊討伐魔物完畢</span>`;
+                card.appendChild(header);
+
+                const listDiv = document.createElement('div');
+                listDiv.className = 'student-list';
+
+                groupStudents.forEach(s => {
+                    const row = document.createElement('div');
+                    row.className = 'student-row';
+                    row.draggable = true;
+                    row.ondragstart = (e) => {
+                        e.dataTransfer.setData('text/plain', s.originalIndex);
+                        e.dataTransfer.effectAllowed = 'move';
+                    };
+
+                    const nameSpan = document.createElement('div');
+                    nameSpan.className = 's-name';
+                    nameSpan.textContent = s.name;
+                    row.appendChild(nameSpan);
+
+                    const taskContainer = document.createElement('div');
+                    taskContainer.className = 'task-container';
+
+                    if(rec.hwCorrect.length === 0) {
+                        taskContainer.innerHTML = '<span style="color:#aaa; font-size:0.8rem; font-style:italic;">無目標</span>';
+                    }
+
+                    rec.hwCorrect.forEach((hw, hwIndex) => {
+                        const btn = document.createElement('div');
+                        btn.className = 'check-btn';
+                        btn.title = hw;
+                        const key = `${s.originalIndex}_${hwIndex}`;
+                        if (rec.status[key]) btn.classList.add('completed');
+
+                        btn.innerHTML = `<span>${hw}</span>`;
+                        btn.onclick = () => toggleStatus(s.originalIndex, hwIndex);
+                        taskContainer.appendChild(btn);
+                    });
+
+                    row.appendChild(taskContainer);
+                    listDiv.appendChild(row);
+                });
+
+                card.appendChild(listDiv);
+                container.appendChild(card);
+            });
+            
+            // Danger Zone
+            const dangerCard = document.createElement('div');
+            dangerCard.className = 'group-card danger-zone-card';
+            dangerCard.innerHTML = `<div class="danger-zone-header">⚠️ 負傷命危的冒險者名單</div>`;
+            
+            const dangerListDiv = document.createElement('div');
+            dangerListDiv.className = 'danger-list';
+            rec.dangerList.forEach((name, idx) => {
+                const row = document.createElement('div');
+                row.className = 'danger-item';
+                row.innerHTML = `<span class="danger-item-name" title="${name}">${name}</span>`;
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'danger-remove-btn';
+                removeBtn.textContent = '✕';
+                removeBtn.onclick = () => removeFromDanger(idx);
+                row.appendChild(removeBtn);
+                dangerListDiv.appendChild(row);
+            });
+            if(rec.dangerList.length === 0) {
+                dangerListDiv.innerHTML = '<div style="text-align:center; color:#999; padding:10px;">目前無人負傷</div>';
+            }
+            dangerCard.appendChild(dangerListDiv);
+            
+            const inputArea = document.createElement('div');
+            inputArea.className = 'danger-input-area';
+            inputArea.innerHTML = `
+                <input type="text" id="danger-input" class="danger-input" placeholder="輸入姓名..." onkeypress="handleDangerKeypress(event)">
+                <button class="danger-add-btn" onclick="addToDanger()">＋</button>
+            `;
+            dangerCard.appendChild(inputArea);
+            container.appendChild(dangerCard);
+        }
+
+        function renderSettingsInputs() {
+            const rec = getDateRecord(currentDate);
+            const sText = window.appData.students.map(s => `${s.name}, ${s.group}`).join('\n');
+            document.getElementById('input-students').value = sText;
+            document.getElementById('input-hw-write').value = rec.hwWrite.join('\n');
+            document.getElementById('input-hw-correct').value = rec.hwCorrect.join('\n');
+        }
+
+        // ================= 互動邏輯 =================
+
+        function changeMonth(delta) {
+            viewMonth.setMonth(viewMonth.getMonth() + delta);
+            renderCalendar();
+        }
+        function goToToday() { viewMonth = new Date(); renderCalendar(); }
+        function showCalendar() {
+            document.querySelectorAll('.panel').forEach(el => el.classList.remove('show'));
+            document.getElementById('calendar-view').classList.add('show');
+            document.getElementById('day-nav-buttons').style.display = 'none';
+            document.getElementById('current-date-display').style.display = 'none';
+            renderCalendar();
+            localStorage.setItem('rpg_last_view', 'calendar-view');
+        }
+        function openDate(dateStr, autoSwitch = true) {
+            currentDate = dateStr;
+            getDateRecord(currentDate);
+            localStorage.setItem('rpg_last_date', currentDate);
+            hasCelebrated = false; // 重置慶祝狀態
+            document.querySelectorAll('.panel').forEach(el => el.classList.remove('show'));
+            document.getElementById('day-nav-buttons').style.display = 'flex';
+            document.getElementById('current-date-display').textContent = currentDate;
+            document.getElementById('current-date-display').style.display = 'inline';
+            if(document.getElementById('setting-date-label')) document.getElementById('setting-date-label').textContent = currentDate;
+            if(document.getElementById('setting-date-label-2')) document.getElementById('setting-date-label-2').textContent = currentDate;
+            if (autoSwitch) switchView('quest-board');
+        }
+        function switchView(viewId) {
+            if(viewId === 'calendar-view') return showCalendar();
+            localStorage.setItem('rpg_last_view', viewId);
+            document.querySelectorAll('.panel').forEach(el => el.classList.remove('show'));
+            document.getElementById('calendar-view').classList.remove('show');
+            document.querySelectorAll('#day-nav-buttons .rpg-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(viewId).classList.add('show');
+            const btnMap = { 'quest-board': 1, 'adventurer-roster': 2, 'settings': 3 };
+            const btn = document.querySelectorAll('#day-nav-buttons .rpg-btn')[btnMap[viewId]];
+            if(btn) btn.classList.add('active');
+            if(viewId === 'quest-board') renderQuestBoard();
+            if(viewId === 'adventurer-roster') renderRoster();
+            if(viewId === 'settings') renderSettingsInputs();
+        }
+
+        function checkAllClear() {
+            if(hasCelebrated) return; // 今天已經慶祝過就不再跳
+            const rec = getDateRecord(currentDate);
+            if (rec.hwCorrect.length === 0) return; 
+
+            let allDone = true;
+            for (let sIdx = 0; sIdx < window.appData.students.length; sIdx++) {
+                for (let hIdx = 0; hIdx < rec.hwCorrect.length; hIdx++) {
+                    if (!rec.status[`${sIdx}_${hIdx}`]) {
+                        allDone = false;
+                        break;
+                    }
+                }
+                if (!allDone) break;
+            }
+
+            if (rec.dangerList.length > 0) allDone = false;
+
+            if (allDone) {
+                showCelebration();
+                hasCelebrated = true;
+            }
+        }
+
+        function showCelebration() {
+            const overlay = document.getElementById('celebration-overlay');
+            overlay.classList.add('active');
+            Sound.play('victory');
+        }
+
+        function closeCelebration() {
+            const overlay = document.getElementById('celebration-overlay');
+            overlay.classList.remove('active');
+        }
+
+        function toggleStatus(sIdx, hIdx) {
+            const rec = getDateRecord(currentDate);
+            const key = `${sIdx}_${hIdx}`;
+            rec.status[key] = !rec.status[key];
+            if (rec.status[key]) Sound.play('success'); else Sound.play('cancel');
+            window.saveData();
+            renderRoster();
+            checkAllClear(); // 檢查是否全破
+        }
+
+        function moveStudentToGroup(studentIndex, newGroupName) {
+            const student = window.appData.students[studentIndex];
+            if (student && student.group !== newGroupName) {
+                student.group = newGroupName;
+                window.saveData();
+                renderRoster();
+                showToast(`${student.name} 已移動到 ${newGroupName}`);
+            }
+        }
+
+        function addToDanger() {
+            const input = document.getElementById('danger-input');
+            const val = input.value.trim();
+            if(val) {
+                Sound.play('click');
+                const rec = getDateRecord(currentDate);
+                rec.dangerList.push(val);
+                window.saveData();
+                renderRoster();
+                setTimeout(() => document.getElementById('danger-input').focus(), 50);
+            }
+        }
+
+        function removeFromDanger(idx) {
+            Sound.play('click');
+            const rec = getDateRecord(currentDate);
+            rec.dangerList.splice(idx, 1);
+            window.saveData();
+            renderRoster();
+            showToast("已將冒險者治癒！");
+            checkAllClear(); // 檢查是否全破 (治癒也算)
+        }
+
+        function handleDangerKeypress(e) { if(e.key === 'Enter') addToDanger(); }
+
+        function saveSettings() {
+            const rec = getDateRecord(currentDate);
+            const rawS = document.getElementById('input-students').value;
+            const rawW = document.getElementById('input-hw-write').value;
+            const rawC = document.getElementById('input-hw-correct').value;
+            const newStudents = [];
+            rawS.split('\n').forEach(line => {
+                if(line.trim()) {
+                    const parts = line.split(/,|，/);
+                    const name = parts[0].trim();
+                    const group = parts[1] ? parts[1].trim() : '未分組';
+                    if(name) newStudents.push({ name, group });
+                }
+            });
+            window.appData.students = newStudents;
+            rec.hwWrite = rawW.split('\n').map(t=>t.trim()).filter(t=>t);
+            rec.hwCorrect = rawC.split('\n').map(t=>t.trim()).filter(t=>t);
+            window.saveData();
+            renderQuestBoard();
+            showToast('設定已儲存！', "success");
+            switchView('quest-board');
+        }
+
+        function clearAllData() {
+            if(confirm('警告：這將會焚毀所有公會卷軸！確定要執行禁忌魔法嗎？')) {
+                if(window.StorageSystem) window.StorageSystem.clear();
+                else {
+                     localStorage.removeItem('rpgClassManager_v6');
+                     localStorage.removeItem('rpgClassManager_v5');
+                }
+                location.reload();
+            }
+        }
+
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.appData));
+            const downloadAnchorNode = document.createElement('a');
+            const dateStr = new Date().toISOString().split('T')[0];
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", `冒險者公會備份_${dateStr}.json`);
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+            showToast("備份檔案已下載！");
+        }
+
+        function importData(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const contents = e.target.result;
+                    const parsedData = JSON.parse(contents);
+                    if (parsedData.students && parsedData.records) {
+                        window.appData = parsedData;
+                        window.saveData();
+                        localStorage.removeItem('rpg_last_view');
+                        localStorage.removeItem('rpg_last_date');
+                        // Reload logic
+                        const today = new Date();
+                        const y = today.getFullYear();
+                        const m = (today.getMonth() + 1).toString().padStart(2, '0');
+                        const d = today.getDate().toString().padStart(2, '0');
+                        currentDate = `${y}-${m}-${d}`;
+                        getDateRecord(currentDate);
+                        renderCalendar();
+                        showCalendar();
+                        showToast("資料匯入成功！", "success");
+                    }
+                } catch (err) { alert("檔案讀取失敗"); }
+            };
+            reader.readAsText(file);
+            input.value = '';
+        }
+
+        function showToast(message, type) {
+            const toast = document.getElementById("toast");
+            toast.textContent = message;
+            toast.className = "show";
+            if(type === "success") toast.classList.add("success");
+            else toast.classList.remove("success");
+            setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 2500);
+        }
+
+        // 初始化本地 App
+        init();
+
+    </script>
+
+    <!-- Cloud Module -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+
+        const StorageSystem = {
+            mode: 'local',
+            db: null,
+            auth: null,
+            docRef: null,
+            
+            init: async function() {
+                if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                    try {
+                        document.getElementById('storage-indicator').textContent = "雲端同步中...";
+                        document.getElementById('storage-indicator').className = "mode-cloud";
+                        this.mode = 'cloud';
+
+                        const firebaseConfig = JSON.parse(__firebase_config);
+                        const app = initializeApp(firebaseConfig);
+                        this.auth = getAuth(app);
+                        this.db = getFirestore(app);
+                        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(this.auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(this.auth);
+                        }
+
+                        onAuthStateChanged(this.auth, (user) => {
+                            if (user) {
+                                const userId = user.uid;
+                                this.docRef = doc(this.db, 'artifacts', appId, 'users', userId, 'data', 'classManager');
+                                
+                                onSnapshot(this.docRef, (docSnap) => {
+                                    if (docSnap.exists()) {
+                                        window.appData = docSnap.data();
+                                        window.refreshUI();
+                                        document.getElementById('storage-indicator').textContent = "☁️ 雲端已同步";
+                                    } else {
+                                        this.save(window.appData);
+                                    }
+                                });
+
+                                // Override global save
+                                window.saveData = () => {
+                                    this.save(window.appData);
+                                };
+                            }
+                        });
+                    } catch (e) {
+                        console.warn("Cloud init failed, staying local", e);
+                        this.fallback();
+                    }
+                }
+            },
+            
+            fallback: function() {
+                document.getElementById('storage-indicator').textContent = "🏠 本地模式";
+                document.getElementById('storage-indicator').className = "mode-local";
+            },
+
+            save: function(data) {
+                if (this.docRef) {
+                    document.getElementById('storage-indicator').textContent = "同步中...";
+                    setDoc(this.docRef, data).then(() => {
+                        document.getElementById('storage-indicator').textContent = "☁️ 雲端已同步";
+                    }).catch(e => {
+                        console.error("Cloud save failed", e);
+                        document.getElementById('storage-indicator').textContent = "⚠️ 同步失敗";
+                    });
+                }
+            },
+
+            clear: function() {
+                if(this.docRef) setDoc(this.docRef, { students: [], records: {} });
+            }
+        };
+
+        window.StorageSystem = StorageSystem;
+        StorageSystem.init();
+    </script>
+</body>
+</html>
