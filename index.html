@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>冒險者公會：冒險日誌 v6.7 (凱旋歸來版)</title>
+    <title>冒險者公會：冒險日誌 v7.0 (雲端連線版)</title>
     <style>
-        /* * =========================================
+        /* =========================================
          * 全域設定
          * =========================================
          */
@@ -82,16 +82,25 @@
             border: 1px solid #8d6e63;
         }
 
-        #storage-indicator {
+        /* 雲端狀態按鈕 */
+        #auth-btn {
             font-size: 0.8rem;
             margin-left: 10px;
-            padding: 2px 6px;
+            padding: 4px 10px;
             border-radius: 4px;
-            font-weight: normal;
+            font-weight: bold;
+            cursor: pointer;
+            border: 2px solid #fff;
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+            transition: all 0.2s;
         }
-        .mode-local { background: #ff9800; color: #fff; }
-        .mode-cloud { background: #4caf50; color: #fff; }
-        .mode-error { background: #f44336; color: #fff; }
+        #auth-btn:active { transform: translate(2px, 2px); box-shadow: none; }
+        
+        .mode-local { background: #757575; color: #fff; border-color: #9e9e9e; }
+        .mode-cloud { background: #4caf50; color: #fff; border-color: #81c784; }
+        .mode-loading { background: #ff9800; color: #fff; animation: pulse 1s infinite; }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
 
         .nav-buttons { display: flex; gap: 8px; }
 
@@ -539,10 +548,9 @@
         <h1>
             🛡️ 冒險者公會 
             <span id="current-date-display" class="hidden"></span>
-            <span id="storage-indicator" class="mode-local">本地模式</span>
+            <button id="auth-btn" class="mode-local" onclick="handleAuth()">☁️ 登入雲端</button>
         </h1>
         <div class="nav-buttons" id="day-nav-buttons" style="display:none;">
-            <!-- 修改 1: 按鈕文字變更，並加入音效 -->
             <button class="rpg-btn" onclick="Sound.play('click'); showCalendar()">📖 回到冒險者日誌</button>
             <button class="rpg-btn active" onclick="Sound.play('click'); switchView('quest-board')">📜 委託清單</button>
             <button class="rpg-btn" onclick="Sound.play('click'); switchView('adventurer-roster')">👥 冒險者名冊</button>
@@ -552,10 +560,9 @@
 
     <div id="app-container">
         
-        <!-- 頁面 0: 冒險日誌 (月曆) -->
         <div id="calendar-view" class="panel show">
             <div class="calendar-header">
-                <div class="calendar-title" id="cal-month-title">2023 年 11 月</div>
+                <div class="calendar-title" id="cal-month-title"></div>
                 <div class="nav-buttons">
                     <button class="rpg-btn" onclick="Sound.play('click'); changeMonth(-1)">◀ 上個月</button>
                     <button class="rpg-btn" onclick="Sound.play('click'); goToToday()">回到今天</button>
@@ -563,11 +570,9 @@
                 </div>
             </div>
             <div id="calendar-grid" class="calendar-grid">
-                <!-- JS 生成月曆 -->
-            </div>
+                </div>
         </div>
 
-        <!-- 頁面 1: 公會委託清單 -->
         <div id="quest-board" class="panel">
             <div class="quest-split-view">
                 <div class="quest-section new-quest">
@@ -575,19 +580,16 @@
                     <ul id="hw-write-list" class="quest-list"><li>載入中...</li></ul>
                 </div>
                 <div class="quest-section fix-quest">
-                    <!-- 確認移除 (訂正) -->
                     <div class="quest-title">⚔️ 剩餘魔物討伐</div>
                     <ul id="hw-correct-list" class="quest-list"><li>載入中...</li></ul>
                 </div>
             </div>
         </div>
 
-        <!-- 頁面 2: 冒險者名冊 (Zero Scroll) -->
         <div id="adventurer-roster" class="panel">
             <div id="roster-container" class="roster-container"></div>
         </div>
 
-        <!-- 頁面 3: 設定 -->
         <div id="settings" class="panel">
             <div class="settings-grid">
                 <div class="input-card">
@@ -595,7 +597,6 @@
                     <textarea id="input-students" placeholder="王小明, 第一組&#10;李小華, 第一組"></textarea>
                 </div>
                 
-                <!-- 這裡會顯示目前操作的日期，避免混淆 -->
                 <div class="input-card">
                     <label>發布委託 (<span id="setting-date-label">本日</span>)<br><small style="color:#d84315; font-weight:normal;">(前方加 * 可變藍色提醒)</small></label>
                     <textarea id="input-hw-write" placeholder="*補帶美勞用具&#10;國語 L5 生字"></textarea>
@@ -605,7 +606,6 @@
                     <textarea id="input-hw-correct" placeholder="數學習作 P.28&#10;國語聽寫訂正"></textarea>
                 </div>
 
-                <!-- 新增：資料備份與還原 -->
                 <div class="input-card" style="grid-column: span 3;">
                     <label>資料備份與還原</label>
                     <div style="display: flex; gap: 10px; padding-top: 10px;">
@@ -614,7 +614,7 @@
                         <input type="file" id="import-file" style="display:none" onchange="importData(this)">
                     </div>
                     <p style="color:#666; font-size:0.9rem; margin-top:10px; font-weight:bold;">
-                        ※ 支援：1. 本機執行時自動存於瀏覽器。 2. 線上分享時自動存於雲端。 3. 手動備份JSON檔。
+                        ※ 支援：1. 本機執行時自動存於瀏覽器。 2. 線上登入後自動存於雲端 (Google Drive/Firestore)。 3. 手動匯出 JSON。
                     </p>
                 </div>
             </div>
@@ -626,7 +626,6 @@
 
     </div>
 
-    <!-- 慶祝彩蛋 (更新為日系 RPG 風格) -->
     <div id="celebration-overlay" class="celebration-overlay" onclick="closeCelebration()">
         <div class="celebration-modal" onclick="event.stopPropagation()">
             <div class="close-celebration" onclick="closeCelebration()">×</div>
@@ -636,10 +635,8 @@
         </div>
     </div>
 
-    <!-- 訊息提示框 -->
     <div id="toast">訊息</div>
 
-    <!-- 基礎邏輯 Script (本地優先) -->
     <script>
         // ================= 音效系統 (Web Audio API) =================
         const Sound = {
@@ -690,7 +687,6 @@
                     osc.start(t);
                     osc.stop(t + 0.15);
                 } else if (type === 'victory') {
-                    // 勝利音效 - 升級版 Fanfare
                     const now = t;
                     const playNote = (freq, startTime, duration, type = 'square') => {
                         const o = this.ctx.createOscillator();
@@ -699,34 +695,25 @@
                         g.connect(this.ctx.destination);
                         o.type = type;
                         o.frequency.value = freq;
-                        
-                        // ADSR envelope approximation
                         g.gain.setValueAtTime(0.01, startTime);
-                        g.gain.linearRampToValueAtTime(0.1, startTime + 0.05); // Attack
-                        g.gain.exponentialRampToValueAtTime(0.08, startTime + 0.1); // Decay
-                        g.gain.setValueAtTime(0.08, startTime + duration - 0.05); // Sustain
-                        g.gain.exponentialRampToValueAtTime(0.001, startTime + duration); // Release
-
+                        g.gain.linearRampToValueAtTime(0.1, startTime + 0.05); 
+                        g.gain.exponentialRampToValueAtTime(0.08, startTime + 0.1); 
+                        g.gain.setValueAtTime(0.08, startTime + duration - 0.05); 
+                        g.gain.exponentialRampToValueAtTime(0.001, startTime + duration); 
                         o.start(startTime);
                         o.stop(startTime + duration);
                     };
 
-                    // RPG Victory Fanfare Melody (approximate)
-                    // Triplets intro: C5 C5 C5
                     playNote(523.25, now + 0.0, 0.1);
                     playNote(523.25, now + 0.15, 0.1);
                     playNote(523.25, now + 0.3, 0.1);
-                    
-                    // Main Theme: C5 -> Ab4 -> Bb4 -> C5 -> Bb4 -> C5 (Held)
                     playNote(523.25, now + 0.45, 0.4);  // C5
                     playNote(415.30, now + 0.85, 0.4);  // Ab4
                     playNote(466.16, now + 1.25, 0.4);  // Bb4
-                    
                     playNote(523.25, now + 1.65, 0.2);  // C5
                     playNote(466.16, now + 1.85, 0.2);  // Bb4
                     playNote(523.25, now + 2.05, 1.5);  // C5 (Held)
 
-                    // Harmony (Thirds below)
                     playNote(329.63, now + 0.45, 0.4, 'triangle'); // E4
                     playNote(261.63, now + 0.85, 0.4, 'triangle'); // C4
                     playNote(293.66, now + 1.25, 0.4, 'triangle'); // D4
@@ -738,7 +725,6 @@
         document.body.addEventListener('click', () => Sound.init(), { once: true });
 
         // ================= 資料結構 =================
-        // 預設資料改為全域變數 window.appData 以確保模組存取一致
         const defaultStudents = [
             { name: "王小明", group: "第一組" }, { name: "李小華", group: "第一組" },
             { name: "張小美", group: "第二組" }, { name: "陳大文", group: "第二組" },
@@ -756,21 +742,19 @@
 
         let currentDate = ""; 
         let viewMonth = new Date(); 
-        let hasCelebrated = false; // 防止重複慶祝
+        let hasCelebrated = false;
 
         // ================= 核心功能 =================
         function init() {
-            // 1. 先嘗試讀取本地 (這是預設，確保畫面不白屏)
+            // 預設先讀本地，Firebase 載入後會覆蓋
             loadDataLocal();
             
-            // 2. 設定日期
             const today = new Date();
             const y = today.getFullYear();
             const m = (today.getMonth() + 1).toString().padStart(2, '0');
             const d = today.getDate().toString().padStart(2, '0');
             const todayStr = `${y}-${m}-${d}`;
 
-            // 3. 嘗試還原狀態
             const lastView = localStorage.getItem('rpg_last_view');
             const lastDate = localStorage.getItem('rpg_last_date');
 
@@ -798,37 +782,32 @@
                     if (!window.appData.records) window.appData.records = {};
                     if (!window.appData.students) window.appData.students = defaultStudents;
                 } catch(e) {
-                    console.error("Local load failed", e);
                     window.appData = { students: defaultStudents, records: {} };
                 }
             }
         }
 
-        // 預設的儲存函式 (會被雲端模組覆蓋)
+        // 預設儲存 (會被 Firebase 模組覆蓋)
         window.saveData = function() {
             try {
                 localStorage.setItem('rpgClassManager_v6', JSON.stringify(window.appData));
-                localStorage.setItem('rpgClassManager_v5', JSON.stringify(window.appData)); // 向下相容
             } catch (e) {
                 console.error("Local save failed", e);
             }
         };
 
-        // 讓模組呼叫的更新介面函式
         window.refreshUI = function() {
-            // 根據當前畫面刷新
             const currentView = document.querySelector('.panel.show').id;
             if (currentView === 'calendar-view') {
                 renderCalendar();
             } else {
-                renderCalendar(); // 背景刷新
+                renderCalendar(); 
                 if(currentView === 'quest-board') renderQuestBoard();
                 if(currentView === 'adventurer-roster') renderRoster();
                 if(currentView === 'settings') renderSettingsInputs();
             }
         };
 
-        // 資料操作函式
         function getDateRecord(dateStr) {
             if (!dateStr) return { hwWrite: [], hwCorrect: [], status: {}, dangerList: [] };
             
@@ -840,7 +819,6 @@
                     dangerList: []
                 };
                 
-                // 繼承上一日
                 const yesterday = new Date(dateStr);
                 yesterday.setDate(yesterday.getDate() - 1);
                 const yStr = yesterday.toISOString().split('T')[0];
@@ -851,9 +829,6 @@
             }
             return window.appData.records[dateStr];
         }
-
-        // ... (以下為 UI 渲染函式: renderCalendar, renderQuestBoard, renderRoster, renderSettingsInputs) ...
-        // 為了節省篇幅，這些邏輯與 v6.1 相同，但必須完整保留在檔案中
 
         function renderCalendar() {
             const grid = document.getElementById('calendar-grid');
@@ -933,7 +908,6 @@
             const writeList = document.getElementById('hw-write-list');
             writeList.innerHTML = rec.hwWrite.length ? '' : '<li>本日無新委託！</li>';
             
-            // V6.5 藍色提醒實作
             rec.hwWrite.forEach(hw => {
                 const li = document.createElement('li');
                 if(hw.startsWith('*')) {
@@ -1090,8 +1064,6 @@
             document.getElementById('input-hw-correct').value = rec.hwCorrect.join('\n');
         }
 
-        // ================= 互動邏輯 =================
-
         function changeMonth(delta) {
             viewMonth.setMonth(viewMonth.getMonth() + delta);
             renderCalendar();
@@ -1109,7 +1081,7 @@
             currentDate = dateStr;
             getDateRecord(currentDate);
             localStorage.setItem('rpg_last_date', currentDate);
-            hasCelebrated = false; // 重置慶祝狀態
+            hasCelebrated = false; 
             document.querySelectorAll('.panel').forEach(el => el.classList.remove('show'));
             document.getElementById('day-nav-buttons').style.display = 'flex';
             document.getElementById('current-date-display').textContent = currentDate;
@@ -1134,7 +1106,7 @@
         }
 
         function checkAllClear() {
-            if(hasCelebrated) return; // 今天已經慶祝過就不再跳
+            if(hasCelebrated) return;
             const rec = getDateRecord(currentDate);
             if (rec.hwCorrect.length === 0) return; 
 
@@ -1175,7 +1147,7 @@
             if (rec.status[key]) Sound.play('success'); else Sound.play('cancel');
             window.saveData();
             renderRoster();
-            checkAllClear(); // 檢查是否全破
+            checkAllClear(); 
         }
 
         function moveStudentToGroup(studentIndex, newGroupName) {
@@ -1208,7 +1180,7 @@
             window.saveData();
             renderRoster();
             showToast("已將冒險者治癒！");
-            checkAllClear(); // 檢查是否全破 (治癒也算)
+            checkAllClear(); 
         }
 
         function handleDangerKeypress(e) { if(e.key === 'Enter') addToDanger(); }
@@ -1241,7 +1213,6 @@
                 if(window.StorageSystem) window.StorageSystem.clear();
                 else {
                      localStorage.removeItem('rpgClassManager_v6');
-                     localStorage.removeItem('rpgClassManager_v5');
                 }
                 location.reload();
             }
@@ -1272,7 +1243,6 @@
                         window.saveData();
                         localStorage.removeItem('rpg_last_view');
                         localStorage.removeItem('rpg_last_date');
-                        // Reload logic
                         const today = new Date();
                         const y = today.getFullYear();
                         const m = (today.getMonth() + 1).toString().padStart(2, '0');
@@ -1298,94 +1268,130 @@
             setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 2500);
         }
 
-        // 初始化本地 App
         init();
 
     </script>
 
-    <!-- Cloud Module -->
     <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        // 匯入 Firebase SDK
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-        const StorageSystem = {
-            mode: 'local',
-            db: null,
-            auth: null,
-            docRef: null,
-            
-            init: async function() {
-                if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-                    try {
-                        document.getElementById('storage-indicator').textContent = "雲端同步中...";
-                        document.getElementById('storage-indicator').className = "mode-cloud";
-                        this.mode = 'cloud';
+        // 1. 設定：這裡已經填入您的 Firebase 鑰匙
+        const firebaseConfig = {
+            apiKey: "AIzaSyDJFzG3RrCkJBx5B23lBVcoOHmaqZ2dAYA",
+            authDomain: "forgemini-7349a.firebaseapp.com",
+            projectId: "forgemini-7349a",
+            storageBucket: "forgemini-7349a.firebasestorage.app",
+            messagingSenderId: "865250968546",
+            appId: "1:865250968546:web:fc3ded71179b709d422fbb"
+        };
 
-                        const firebaseConfig = JSON.parse(__firebase_config);
-                        const app = initializeApp(firebaseConfig);
-                        this.auth = getAuth(app);
-                        this.db = getFirestore(app);
-                        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        // 2. 初始化 Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
 
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await signInWithCustomToken(this.auth, __initial_auth_token);
-                        } else {
-                            await signInAnonymously(this.auth);
-                        }
+        let currentUser = null;
+        let unsubscribeDoc = null;
 
-                        onAuthStateChanged(this.auth, (user) => {
-                            if (user) {
-                                const userId = user.uid;
-                                this.docRef = doc(this.db, 'artifacts', appId, 'users', userId, 'data', 'classManager');
-                                
-                                onSnapshot(this.docRef, (docSnap) => {
-                                    if (docSnap.exists()) {
-                                        window.appData = docSnap.data();
-                                        window.refreshUI();
-                                        document.getElementById('storage-indicator').textContent = "☁️ 雲端已同步";
-                                    } else {
-                                        this.save(window.appData);
-                                    }
-                                });
-
-                                // Override global save
-                                window.saveData = () => {
-                                    this.save(window.appData);
-                                };
-                            }
-                        });
-                    } catch (e) {
-                        console.warn("Cloud init failed, staying local", e);
-                        this.fallback();
-                    }
+        // 3. 處理登入/登出按鈕邏輯
+        window.handleAuth = async function() {
+            if (currentUser) {
+                // 如果已登入 -> 登出
+                try {
+                    await signOut(auth);
+                    // 登出後重整頁面，恢復本地模式
+                    location.reload();
+                } catch (error) {
+                    console.error("登出失敗", error);
+                    alert("登出失敗：" + error.message);
                 }
-            },
-            
-            fallback: function() {
-                document.getElementById('storage-indicator').textContent = "🏠 本地模式";
-                document.getElementById('storage-indicator').className = "mode-local";
-            },
-
-            save: function(data) {
-                if (this.docRef) {
-                    document.getElementById('storage-indicator').textContent = "同步中...";
-                    setDoc(this.docRef, data).then(() => {
-                        document.getElementById('storage-indicator').textContent = "☁️ 雲端已同步";
-                    }).catch(e => {
-                        console.error("Cloud save failed", e);
-                        document.getElementById('storage-indicator').textContent = "⚠️ 同步失敗";
-                    });
+            } else {
+                // 如果沒登入 -> 跳出 Google 登入視窗
+                try {
+                    await signInWithPopup(auth, provider);
+                } catch (error) {
+                    console.error("登入失敗", error);
+                    alert("登入失敗：" + error.message);
                 }
-            },
-
-            clear: function() {
-                if(this.docRef) setDoc(this.docRef, { students: [], records: {} });
             }
         };
 
-        window.StorageSystem = StorageSystem;
-        StorageSystem.init();
+        // 4. 監聽登入狀態改變
+        onAuthStateChanged(auth, (user) => {
+            const btn = document.getElementById('auth-btn');
+            
+            if (user) {
+                // === 已登入 ===
+                currentUser = user;
+                console.log("已登入:", user.displayName);
+                
+                // 更新按鈕外觀
+                btn.textContent = `👤 ${user.displayName}`;
+                btn.className = "mode-cloud";
+                btn.title = "點擊以登出";
+                
+                // 開始監聽雲端資料庫
+                startSync(user.uid);
+                
+            } else {
+                // === 未登入 ===
+                currentUser = null;
+                console.log("未登入，使用本地模式");
+                btn.textContent = "☁️ 登入雲端";
+                btn.className = "mode-local";
+                if(unsubscribeDoc) unsubscribeDoc(); // 停止監聽
+            }
+        });
+
+        // 5. 資料同步核心
+        function startSync(userId) {
+            // 資料路徑：users/{userId}/gameData/main
+            const docRef = doc(db, "users", userId, "gameData", "main");
+            
+            // 監聽雲端資料變化 (下載)
+            unsubscribeDoc = onSnapshot(docRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    console.log("收到雲端資料更新");
+                    const cloudData = docSnap.data();
+                    
+                    // 檢查格式是否正確
+                    if(cloudData.students && cloudData.records) {
+                        window.appData = cloudData;
+                        window.refreshUI(); // 刷新畫面
+                        showToast("☁️ 資料已同步", "success");
+                    }
+                } else {
+                    console.log("雲端尚無資料，將上傳本地資料...");
+                    // 如果雲端是空的，就把現在本地的資料傳上去
+                    saveToCloud();
+                }
+            });
+
+            // 覆寫全域儲存函式 (上傳)
+            window.saveData = function() {
+                // 同時存本地 (當備份)
+                localStorage.setItem('rpgClassManager_v6', JSON.stringify(window.appData));
+                
+                // 上傳雲端
+                saveToCloud();
+            };
+        }
+
+        async function saveToCloud() {
+            if (!currentUser) return;
+            const docRef = doc(db, "users", currentUser.uid, "gameData", "main");
+            try {
+                await setDoc(docRef, window.appData, { merge: true });
+                // 這裡不需顯示 Toast，因為 onSnapshot 會觸發更新提示
+            } catch (e) {
+                console.error("上傳失敗", e);
+                showToast("⚠️ 上傳失敗，請檢查網路");
+            }
+        }
     </script>
 </body>
 </html>
