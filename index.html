@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>冒險者公會：冒險日誌 v7.3 (穩定發布版)</title>
+    <title>冒險者公會：冒險日誌 v7.4 (GitHub 雲端連線版)</title>
     <style>
         /* * =========================================
          * 全域設定
@@ -82,16 +82,27 @@
             border: 1px solid #8d6e63;
         }
 
-        #storage-indicator {
+        /* 雲端按鈕樣式 */
+        #auth-btn {
             font-size: 0.8rem;
             margin-left: 10px;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-weight: normal;
-            display: none; /* 預設隱藏，有雲端設定才顯示 */
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            border: 2px solid rgba(255,255,255,0.5);
+            transition: all 0.2s;
+            display: flex; align-items: center; gap: 5px;
         }
+        #auth-btn:hover { transform: scale(1.05); }
         .mode-local { background: #ff9800; color: #fff; }
         .mode-cloud { background: #4caf50; color: #fff; }
+
+        #storage-indicator {
+            font-size: 0.8rem;
+            margin-left: 5px;
+            opacity: 0.8;
+        }
 
         .nav-buttons { display: flex; gap: 8px; }
 
@@ -345,7 +356,8 @@
         <h1>
             🛡️ 冒險者公會 
             <span id="current-date-display" class="hidden"></span>
-            <span id="storage-indicator" class="mode-local">本地模式</span>
+            <button id="auth-btn" class="mode-local" onclick="handleAuth()">☁️ 登入雲端</button>
+            <span id="storage-indicator"></span>
         </h1>
         <div class="nav-buttons" id="day-nav-buttons" style="display:none;">
             <button class="rpg-btn" onclick="Sound.play('click'); showCalendar()">📖 回到冒險者日誌</button>
@@ -408,7 +420,7 @@
                         <input type="file" id="import-file" style="display:none" onchange="importData(this)">
                     </div>
                     <p style="color:#666; font-size:0.9rem; margin-top:10px; font-weight:bold;">
-                        ※ 支援：1. 本機執行時自動存於瀏覽器 (Local Storage)。 2. 手動備份 JSON 檔案。 (GitHub 託管時自動切換為本機模式)
+                        ※ 支援：1. 本機執行時自動存於瀏覽器 (Local Storage)。 2. 登入後自動存於 Google 雲端。 3. 手動備份 JSON 檔案。
                     </p>
                 </div>
             </div>
@@ -443,7 +455,7 @@
 
     <div id="toast">訊息</div>
 
-    <!-- 核心邏輯 -->
+    <!-- 基礎邏輯 Script -->
     <script>
         const Sound = {
             ctx: null,
@@ -994,60 +1006,126 @@
             setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 2500);
         }
 
-        // Safe Cloud Module Loading (Will fail silently on local/github without config)
-        (async function() {
-            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+        // 初始化本地 App
+        init();
+
+    </script>
+
+    <!-- Cloud Module: Hardcoded Firebase Config for GitHub Pages -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // 使用您提供的專案設定 (來自 v6.1 紀錄)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDJFzG3RrCkJBx5B23lBVcoOHmaqZ2dAYA",
+            authDomain: "forgemini-7349a.firebaseapp.com",
+            projectId: "forgemini-7349a",
+            storageBucket: "forgemini-7349a.firebasestorage.app",
+            messagingSenderId: "865250968546",
+            appId: "1:865250968546:web:fc3ded71179b709d422fbb"
+        };
+
+        // 2. 初始化 Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+
+        let currentUser = null;
+        let unsubscribeDoc = null;
+
+        // 3. 處理登入/登出按鈕邏輯
+        window.handleAuth = async function() {
+            if (currentUser) {
                 try {
-                    const { initializeApp } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js');
-                    const { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
-                    const { getFirestore, doc, setDoc, onSnapshot } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
-
-                    document.getElementById('storage-indicator').style.display = "inline";
-                    document.getElementById('storage-indicator').textContent = "雲端同步中...";
-                    document.getElementById('storage-indicator').className = "mode-cloud";
-
-                    const app = initializeApp(JSON.parse(__firebase_config));
-                    const auth = getAuth(app);
-                    const db = getFirestore(app);
-                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
-                    else await signInAnonymously(auth);
-
-                    onAuthStateChanged(auth, (user) => {
-                        if (user) {
-                            const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'data', 'classManager');
-                            onSnapshot(docRef, (s) => {
-                                if (s.exists()) {
-                                    window.appData = s.data();
-                                    // Refresh UI if data changed
-                                    const currentView = document.querySelector('.panel.show').id;
-                                    if(currentView !== 'calendar-view') {
-                                        if(currentView === 'quest-board') renderQuestBoard();
-                                        else if(currentView === 'adventurer-roster') renderRoster();
-                                        else if(currentView === 'settings') renderSettingsInputs();
-                                    } else renderCalendar();
-                                    
-                                    document.getElementById('storage-indicator').textContent = "☁️ 雲端已同步";
-                                } else {
-                                    // Initial save
-                                    setDoc(docRef, window.appData);
-                                }
-                            });
-                            // Override local save
-                            window.saveData = () => {
-                                localStorage.setItem('rpgClassManager_v6', JSON.stringify(window.appData));
-                                setDoc(docRef, window.appData).catch(console.error);
-                            };
-                        }
-                    });
-                } catch (e) {
-                    console.log("Cloud init skipped or failed, running local only.");
+                    await signOut(auth);
+                    location.reload();
+                } catch (error) {
+                    alert("登出失敗：" + error.message);
+                }
+            } else {
+                try {
+                    await signInWithPopup(auth, provider);
+                } catch (error) {
+                    alert("登入失敗：" + error.message);
                 }
             }
-        })();
+        };
 
-        init();
+        // 4. 監聽登入狀態改變
+        onAuthStateChanged(auth, (user) => {
+            const btn = document.getElementById('auth-btn');
+            const indicator = document.getElementById('storage-indicator');
+            
+            if (user) {
+                currentUser = user;
+                btn.textContent = `👤 ${user.displayName}`;
+                btn.className = "mode-cloud";
+                btn.title = "點擊以登出";
+                indicator.style.display = "inline";
+                
+                startSync(user.uid);
+                
+            } else {
+                currentUser = null;
+                btn.textContent = "☁️ 登入雲端";
+                btn.className = "mode-local";
+                indicator.style.display = "none"; // 未登入不顯示同步狀態
+                if(unsubscribeDoc) unsubscribeDoc();
+            }
+        });
+
+        // 5. 資料同步核心
+        function startSync(userId) {
+            const docRef = doc(db, "users", userId, "gameData", "main");
+            const indicator = document.getElementById('storage-indicator');
+            indicator.textContent = "同步中...";
+            indicator.className = "mode-cloud";
+
+            unsubscribeDoc = onSnapshot(docRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const cloudData = docSnap.data();
+                    if(cloudData.students && cloudData.records) {
+                        window.appData = cloudData;
+                        window.refreshUI(); 
+                        indicator.textContent = "☁️ 雲端已同步";
+                        showToast("☁️ 資料已同步", "success");
+                    }
+                } else {
+                    saveToCloud();
+                }
+            }, (error) => {
+                console.error("Cloud sync error:", error);
+                indicator.textContent = "⚠️ 同步失敗";
+                indicator.className = "mode-error";
+            });
+
+            // 覆寫全域儲存函式
+            window.saveData = function() {
+                // 本地備份
+                localStorage.setItem('rpgClassManager_v6', JSON.stringify(window.appData));
+                // 上傳雲端
+                saveToCloud();
+            };
+        }
+
+        async function saveToCloud() {
+            if (!currentUser) return;
+            const docRef = doc(db, "users", currentUser.uid, "gameData", "main");
+            const indicator = document.getElementById('storage-indicator');
+            
+            try {
+                indicator.textContent = "上傳中...";
+                await setDoc(docRef, window.appData, { merge: true });
+                indicator.textContent = "☁️ 雲端已同步";
+            } catch (e) {
+                console.error("上傳失敗", e);
+                indicator.textContent = "⚠️ 上傳失敗";
+                indicator.className = "mode-error";
+            }
+        }
     </script>
 </body>
 </html>
