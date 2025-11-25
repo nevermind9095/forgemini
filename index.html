@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>冒險者公會：冒險日誌 v7.5 (小組一鍵完成版)</title>
+    <title>冒險者公會：冒險日誌 v7.7 (魔藥情境優化版)</title>
     <style>
         /* * =========================================
          * 全域設定
@@ -257,13 +257,12 @@
         .roster-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; padding-bottom: 5px; overflow-y: auto; flex: 1; align-content: start; }
         .group-card { background: #fff8e1; border: 2px solid #8d6e63; border-radius: 5px; box-shadow: 2px 2px 0 rgba(0,0,0,0.1); display: flex; flex-direction: column; height: fit-content; }
         
-        /* 小組標題優化 - 支援點擊 */
         .group-header { 
             background: #5d4037; color: #fff; padding: 4px 8px; 
             font-size: 1rem; font-weight: bold; 
             display: flex; justify-content: space-between; align-items: center; 
             border-bottom: 2px solid #3e2723; height: 28px; 
-            cursor: pointer; /* 變為手指 */
+            cursor: pointer;
             transition: filter 0.2s;
         }
         .group-header:hover { filter: brightness(1.15); }
@@ -275,7 +274,7 @@
         .student-row { display: flex; align-items: center; margin-bottom: 2px; border-bottom: 1px dashed #ccc; padding-bottom: 2px; height: 30px; }
         .s-name { width: 64px; font-size: 1rem; font-weight: bold; color: #3e2723; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 4px; }
         .task-container { flex: 1; display: flex; gap: 6px; flex-wrap: nowrap; overflow: hidden; }
-        .check-btn { flex: 1; min-width: 0; height: 26px; border: 1px solid var(--status-incomplete-border); background: var(--status-incomplete-bg); color: var(--status-incomplete-text); border-radius: 3px; font-weight: bold; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0 1px; }
+        .check-btn { flex: 1; min-width: 0; height: 26px; border: 1px solid var(--status-incomplete-border); background: var(--status-incomplete-bg); color: var(--status-incomplete-text); border-radius: 3px; font-weight: bold; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; padding: 0 1px; }
         .check-btn span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; text-align: center; }
         .check-btn.completed { border-color: var(--status-complete-border); background: var(--status-complete-bg); color: var(--status-complete-text); }
         .check-btn.completed::after { content: '魔物討伐'; font-weight: 900; font-size: 0.85rem; }
@@ -537,11 +536,24 @@
         let currentEditingIndex = null; 
 
         function init() {
+            // DOMContentLoaded 確保元素存在
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+                return;
+            }
             try {
                 loadDataLocal();
                 
+                // 1. 預設為今天
                 const today = new Date();
-                const todayStr = `${today.getFullYear()}-${(today.getMonth()+1).toString().padStart(2,'0')}-${today.getDate().toString().padStart(2,'0')}`;
+                const y = today.getFullYear();
+                const m = (today.getMonth() + 1).toString().padStart(2, '0');
+                const d = today.getDate().toString().padStart(2, '0');
+                const todayStr = `${y}-${m}-${d}`;
+                
+                // 2. 確保 viewMonth 也是今天
+                viewMonth = new Date();
+
                 const lastView = localStorage.getItem('rpg_last_view');
                 const lastDate = localStorage.getItem('rpg_last_date');
                 
@@ -549,26 +561,25 @@
                     currentDate = lastDate;
                 } else {
                     currentDate = todayStr;
-                    getDateRecord(todayStr); // Ensure today exists
+                    getDateRecord(todayStr); 
                 }
 
+                // 3. 優先載入月曆，再切換（如果有紀錄）
+                renderCalendar();
+                showCalendar();
+
                 if (lastView && lastView !== 'calendar-view') {
-                    // Safe check if element exists before switching
                     if(document.getElementById(lastView)) {
-                        openDate(currentDate, false);
-                        switchView(lastView);
-                    } else {
-                        // Fallback
-                        renderCalendar();
-                        showCalendar();
+                        // 短暫延遲確保 renderCalendar 完成
+                        setTimeout(() => {
+                            openDate(currentDate, false);
+                            switchView(lastView);
+                        }, 50);
                     }
-                } else {
-                    renderCalendar();
-                    showCalendar();
                 }
             } catch(e) {
                 console.error("Init failed, resetting...", e);
-                localStorage.clear(); // Last resort
+                localStorage.clear(); 
                 location.reload();
             }
         }
@@ -612,6 +623,10 @@
         function renderCalendar() {
             const grid = document.getElementById('calendar-grid');
             if(!grid) return;
+            
+            // 防呆：如果沒有資料，先補上
+            if (!window.appData.records) window.appData.records = {};
+
             grid.innerHTML = '';
             document.getElementById('cal-month-title').textContent = `${viewMonth.getFullYear()} 年 ${viewMonth.getMonth() + 1} 月`;
             
@@ -659,8 +674,70 @@
             }
         }
 
+        function changeMonth(delta) {
+            viewMonth.setMonth(viewMonth.getMonth() + delta);
+            renderCalendar();
+        }
+
+        function goToToday() {
+            viewMonth = new Date();
+            renderCalendar();
+        }
+
+        function showCalendar() {
+            document.querySelectorAll('.panel').forEach(el => el.classList.remove('show'));
+            document.getElementById('calendar-view').classList.add('show');
+            document.getElementById('day-nav-buttons').style.display = 'none';
+            document.getElementById('current-date-display').style.display = 'none';
+            renderCalendar(); 
+            
+            localStorage.setItem('rpg_last_view', 'calendar-view');
+        }
+
+        function openDate(dateStr, autoSwitch = true) {
+            currentDate = dateStr;
+            getDateRecord(currentDate); 
+            
+            localStorage.setItem('rpg_last_date', currentDate);
+
+            document.querySelectorAll('.panel').forEach(el => el.classList.remove('show'));
+            document.getElementById('day-nav-buttons').style.display = 'flex';
+            document.getElementById('current-date-display').textContent = currentDate;
+            document.getElementById('current-date-display').style.display = 'inline';
+            
+            if(document.getElementById('setting-date-label')) document.getElementById('setting-date-label').textContent = currentDate;
+            if(document.getElementById('setting-date-label-2')) document.getElementById('setting-date-label-2').textContent = currentDate;
+
+            if (autoSwitch) switchView('quest-board');
+        }
+
+
+        // ================= 共用邏輯 =================
+        
+        function switchView(viewId) {
+            if(viewId === 'calendar-view') return showCalendar();
+            
+            localStorage.setItem('rpg_last_view', viewId);
+
+            document.querySelectorAll('.panel').forEach(el => el.classList.remove('show'));
+            document.getElementById('calendar-view').classList.remove('show');
+            
+            document.querySelectorAll('#day-nav-buttons .rpg-btn').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(viewId).classList.add('show');
+            
+            const btnMap = { 'quest-board': 1, 'adventurer-roster': 2, 'settings': 3 };
+            const btn = document.querySelectorAll('#day-nav-buttons .rpg-btn')[btnMap[viewId]];
+            if(btn) btn.classList.add('active');
+
+            if(viewId === 'quest-board') renderQuestBoard();
+            if(viewId === 'adventurer-roster') renderRoster();
+            if(viewId === 'settings') renderSettingsInputs();
+        }
+
         function renderQuestBoard() {
             const rec = getDateRecord(currentDate);
+            
             const writeList = document.getElementById('hw-write-list');
             writeList.innerHTML = rec.hwWrite.length ? '' : '<li>本日無新委託！</li>';
             rec.hwWrite.forEach(hw => {
@@ -669,10 +746,13 @@
                 else li.textContent = hw;
                 writeList.appendChild(li);
             });
+
             const correctList = document.getElementById('hw-correct-list');
             correctList.innerHTML = rec.hwCorrect.length ? '' : '<li>目前非常安全</li>';
             rec.hwCorrect.forEach(hw => {
-                const li = document.createElement('li'); li.textContent = hw; correctList.appendChild(li);
+                const li = document.createElement('li');
+                li.textContent = hw;
+                correctList.appendChild(li);
             });
             
             document.getElementById('quest-date-1').textContent = `(${currentDate})`;
@@ -683,134 +763,147 @@
             const rec = getDateRecord(currentDate);
             const container = document.getElementById('roster-container');
             container.innerHTML = '';
+
             if (window.appData.students.length === 0) {
-                container.innerHTML = '<div style="padding:20px; font-size:1.2rem;">公會名冊空白，請至「設定」招募冒險者。</div>'; return;
+                container.innerHTML = '<div style="padding:20px; font-size:1.2rem; color:#8d6e63;">公會名冊空白，請至「設定」招募冒險者。</div>';
+                return;
             }
+
             const groups = {};
             window.appData.students.forEach((s, index) => {
                 const gName = s.group || '未分組';
                 if (!groups[gName]) groups[gName] = [];
                 groups[gName].push({ ...s, originalIndex: index });
             });
-            Object.keys(groups).sort((a, b) => (a==='未分組'?1:b==='未分組'?-1:a.localeCompare(b, 'zh-TW', {numeric:true}))).forEach(gName => {
+
+            const groupNames = Object.keys(groups).sort((a, b) => {
+                if(a === '未分組') return 1;
+                if(b === '未分組') return -1;
+                return a.localeCompare(b, 'zh-TW', { numeric: true }); 
+            });
+
+            groupNames.forEach(gName => {
                 const groupStudents = groups[gName];
-                const card = document.createElement('div'); card.className = 'group-card';
+                const card = document.createElement('div');
+                card.className = 'group-card';
+                
+                // Drag events
                 card.ondragover = (e) => { e.preventDefault(); card.classList.add('drag-over'); };
                 card.ondragleave = (e) => { card.classList.remove('drag-over'); };
-                card.ondrop = (e) => { e.preventDefault(); card.classList.remove('drag-over'); moveStudentToGroup(e.dataTransfer.getData('text/plain'), gName); };
-                
+                card.ondrop = (e) => {
+                    e.preventDefault(); card.classList.remove('drag-over');
+                    const studentIndex = e.dataTransfer.getData('text/plain');
+                    if (studentIndex !== "") moveStudentToGroup(studentIndex, gName);
+                };
+
                 let isGroupAllClear = rec.hwCorrect.length > 0;
                 groupStudents.forEach(s => {
-                    rec.hwCorrect.forEach((_, hIdx) => { if (!rec.status[`${s.originalIndex}_${hIdx}`]) isGroupAllClear = false; });
+                    rec.hwCorrect.forEach((_, hIdx) => {
+                        const key = `${s.originalIndex}_${hIdx}`;
+                        if (!rec.status[key]) isGroupAllClear = false;
+                    });
                 });
                 if(rec.hwCorrect.length === 0) isGroupAllClear = false;
 
-                // 新增 toggleGroupStatus 事件
+                // toggleGroupStatus
                 card.innerHTML = `<div class="group-header" onclick="toggleGroupStatus('${gName}')" title="點擊切換全組狀態"><span>${gName}</span><span class="group-bonus ${isGroupAllClear?'active':''}">小隊討伐魔物完畢</span></div>`;
                 
-                const listDiv = document.createElement('div'); listDiv.className = 'student-list';
+                const listDiv = document.createElement('div');
+                listDiv.className = 'student-list';
+
                 groupStudents.forEach(s => {
-                    const row = document.createElement('div'); row.className = 'student-row';
-                    row.draggable = true; row.ondragstart = (e) => e.dataTransfer.setData('text/plain', s.originalIndex);
-                    let btns = '';
-                    if(rec.hwCorrect.length === 0) btns = '<span style="color:#aaa; font-size:0.8rem;">無目標</span>';
-                    else rec.hwCorrect.forEach((hw, hIdx) => {
-                        const key = `${s.originalIndex}_${hIdx}`;
-                        const cls = rec.status[key] ? 'check-btn completed' : 'check-btn';
-                        btns += `<div class="${cls}" onclick="toggleStatus(${s.originalIndex},${hIdx})" title="${hw}"><span>${hw}</span></div>`;
+                    const row = document.createElement('div');
+                    row.className = 'student-row';
+                    row.draggable = true;
+                    row.ondragstart = (e) => {
+                        e.dataTransfer.setData('text/plain', s.originalIndex);
+                        e.dataTransfer.effectAllowed = 'move';
+                    };
+
+                    const nameSpan = document.createElement('div');
+                    nameSpan.className = 's-name';
+                    nameSpan.textContent = s.name;
+                    row.appendChild(nameSpan);
+
+                    const taskContainer = document.createElement('div');
+                    taskContainer.className = 'task-container';
+
+                    if(rec.hwCorrect.length === 0) {
+                        taskContainer.innerHTML = '<span style="color:#aaa; font-size:0.8rem; font-style:italic;">無目標</span>';
+                    }
+
+                    rec.hwCorrect.forEach((hw, hwIndex) => {
+                        const btn = document.createElement('div');
+                        btn.className = 'check-btn';
+                        btn.title = hw;
+                        const key = `${s.originalIndex}_${hwIndex}`;
+                        
+                        if (rec.status[key]) {
+                            btn.classList.add('completed');
+                        }
+
+                        btn.innerHTML = `<span>${hw}</span>`;
+                        btn.onclick = () => toggleStatus(s.originalIndex, hwIndex);
+                        taskContainer.appendChild(btn);
                     });
-                    row.innerHTML = `<div class="s-name">${s.name}</div><div class="task-container">${btns}</div>`;
+
+                    row.appendChild(taskContainer);
                     listDiv.appendChild(row);
                 });
-                card.appendChild(listDiv); container.appendChild(card);
+
+                card.appendChild(listDiv);
+                container.appendChild(card);
             });
             
-            const dangerCard = document.createElement('div'); dangerCard.className = 'group-card danger-zone-card';
+            // Danger Zone
+            const dangerCard = document.createElement('div');
+            dangerCard.className = 'group-card danger-zone-card';
             dangerCard.innerHTML = `<div class="danger-zone-header">⚠️ 負傷命危的冒險者名單</div>`;
-            const dangerListDiv = document.createElement('div'); dangerListDiv.className = 'danger-list';
-            if(rec.dangerList.length === 0) dangerListDiv.innerHTML = '<div style="text-align:center; color:#999; padding:10px;">目前無人負傷</div>';
-            else rec.dangerList.forEach((item, idx) => {
-                const name = typeof item === 'object' ? item.name : item;
-                dangerListDiv.innerHTML += `<div class="danger-item" onclick="openDangerPotionModal(${idx})">
-                    <span class="danger-item-name" title="${name}">${name}</span>
-                    <button class="danger-remove-btn" onclick="event.stopPropagation(); removeFromDanger(${idx})">✕</button>
-                </div>`;
-            });
+            const dangerListDiv = document.createElement('div');
+            dangerListDiv.className = 'danger-list';
+            if(rec.dangerList.length === 0) {
+                dangerListDiv.innerHTML = '<div style="text-align:center; color:#999; padding:10px;">目前無人負傷</div>';
+            } else {
+                rec.dangerList.forEach((item, idx) => {
+                    const name = typeof item === 'object' ? item.name : item;
+                    dangerListDiv.innerHTML += `<div class="danger-item" onclick="openDangerPotionModal(${idx})">
+                        <span class="danger-item-name" title="${name}">${name}</span>
+                        <button class="danger-remove-btn" onclick="event.stopPropagation(); removeFromDanger(${idx})">✕</button>
+                    </div>`;
+                });
+            }
             dangerCard.appendChild(dangerListDiv);
             dangerCard.innerHTML += `<div class="danger-input-area"><input type="text" id="danger-input" class="danger-input" placeholder="輸入姓名..." onkeypress="handleDangerKeypress(event)"><button class="danger-add-btn" onclick="addToDanger()">＋</button></div>`;
             container.appendChild(dangerCard);
         }
 
-        function renderSettingsInputs() {
-            const rec = getDateRecord(currentDate);
-            document.getElementById('input-students').value = window.appData.students.map(s => `${s.name}, ${s.group}`).join('\n');
-            document.getElementById('input-hw-write').value = rec.hwWrite.join('\n');
-            document.getElementById('input-hw-correct').value = rec.hwCorrect.join('\n');
-        }
-
-        function changeMonth(d) { viewMonth.setMonth(viewMonth.getMonth() + d); renderCalendar(); }
-        function goToToday() { viewMonth = new Date(); renderCalendar(); }
-        function showCalendar() {
-            document.querySelectorAll('.panel').forEach(el => el.classList.remove('show'));
-            document.getElementById('calendar-view').classList.add('show');
-            document.getElementById('day-nav-buttons').style.display = 'none';
-            document.getElementById('current-date-display').style.display = 'none';
-            renderCalendar();
-            localStorage.setItem('rpg_last_view', 'calendar-view');
-        }
-        function openDate(dateStr, autoSwitch = true) {
-            currentDate = dateStr; getDateRecord(currentDate);
-            localStorage.setItem('rpg_last_date', currentDate);
-            hasCelebrated = false;
-            document.querySelectorAll('.panel').forEach(el => el.classList.remove('show'));
-            document.getElementById('day-nav-buttons').style.display = 'flex';
-            document.getElementById('current-date-display').textContent = currentDate;
-            document.getElementById('current-date-display').style.display = 'inline';
-            if(document.getElementById('setting-date-label')) document.getElementById('setting-date-label').textContent = currentDate;
-            if(document.getElementById('setting-date-label-2')) document.getElementById('setting-date-label-2').textContent = currentDate;
-            if (autoSwitch) switchView('quest-board');
-        }
-        function switchView(id) {
-            if(id === 'calendar-view') return showCalendar();
-            localStorage.setItem('rpg_last_view', id);
-            document.querySelectorAll('.panel').forEach(el => el.classList.remove('show'));
-            document.getElementById(id).classList.add('show');
-            document.querySelectorAll('#day-nav-buttons .rpg-btn').forEach(b => b.classList.remove('active'));
-            const idx = {'quest-board':0, 'adventurer-roster':1, 'settings':2}[id];
-            if(idx!==undefined) document.querySelectorAll('#day-nav-buttons .rpg-btn')[idx].classList.add('active');
-            if(id === 'quest-board') renderQuestBoard();
-            if(id === 'adventurer-roster') renderRoster();
-            if(id === 'settings') renderSettingsInputs();
-        }
-
-        function checkAllClear() {
-            if(hasCelebrated) return;
-            const rec = getDateRecord(currentDate);
-            if (rec.hwCorrect.length === 0) return;
-            let allDone = true;
-            for(let i=0; i<window.appData.students.length; i++) {
-                for(let j=0; j<rec.hwCorrect.length; j++) {
-                    if(!rec.status[`${i}_${j}`]) { allDone = false; break; }
-                }
-            }
-            if (rec.dangerList.length > 0) allDone = false;
-            if (allDone) {
-                document.getElementById('celebration-overlay').classList.add('active');
-                Sound.play('victory');
-                hasCelebrated = true;
+        // 互動功能
+        function moveStudentToGroup(studentIndex, newGroupName) {
+            const student = window.appData.students[studentIndex];
+            if (student && student.group !== newGroupName) {
+                student.group = newGroupName;
+                window.saveData();
+                renderRoster();
+                showToast(`${student.name} 已移動到 ${newGroupName}`);
             }
         }
-        function closeCelebration() { document.getElementById('celebration-overlay').classList.remove('active'); }
 
-        function toggleStatus(s, h) {
+        function toggleStatus(sIdx, hIdx) {
             const rec = getDateRecord(currentDate);
-            const k = `${s}_${h}`;
-            rec.status[k] = !rec.status[k];
-            Sound.play(rec.status[k] ? 'success' : 'cancel');
-            window.saveData(); renderRoster(); checkAllClear();
+            const key = `${sIdx}_${hIdx}`;
+            rec.status[key] = !rec.status[key];
+            
+            if (rec.status[key]) {
+                Sound.play('success');
+            } else {
+                Sound.play('cancel');
+            }
+            
+            window.saveData();
+            renderRoster();
+            checkAllClear(); // 檢查是否全破
         }
 
-        // NEW: Toggle entire group
         function toggleGroupStatus(groupName) {
             const rec = getDateRecord(currentDate);
             if (rec.hwCorrect.length === 0) return;
@@ -830,8 +923,7 @@
                 });
             });
 
-            const newState = anyIncomplete; // If any unchecked, check all. Else uncheck all.
-
+            const newState = anyIncomplete; 
             targetStudentIndices.forEach(sIdx => {
                 rec.hwCorrect.forEach((_, hIdx) => {
                     rec.status[`${sIdx}_${hIdx}`] = newState;
@@ -844,22 +936,27 @@
             checkAllClear();
         }
 
-        function moveStudentToGroup(sIdx, gName) {
-            const s = window.appData.students[sIdx];
-            if (s && s.group !== gName) { s.group = gName; window.saveData(); renderRoster(); showToast(`${s.name} 已移動到 ${gName}`); }
-        }
         function addToDanger() {
             const val = document.getElementById('danger-input').value.trim();
             if(val) {
                 Sound.play('click'); 
                 getDateRecord(currentDate).dangerList.push({ name: val, tasks: [] });
-                window.saveData(); renderRoster(); document.getElementById('danger-input').focus();
+                window.saveData();
+                renderRoster();
+                setTimeout(() => document.getElementById('danger-input').focus(), 50);
             }
         }
+
         function removeFromDanger(idx) {
-            Sound.play('click'); getDateRecord(currentDate).dangerList.splice(idx, 1);
-            window.saveData(); renderRoster(); showToast("已將冒險者治癒！"); checkAllClear();
+            Sound.play('click');
+            const rec = getDateRecord(currentDate);
+            rec.dangerList.splice(idx, 1);
+            window.saveData();
+            renderRoster();
+            showToast("已將冒險者治癒！");
+            checkAllClear(); // 檢查是否全破 (治癒也算)
         }
+
         function handleDangerKeypress(e) { if(e.key === 'Enter') addToDanger(); }
 
         // Modal Logic
@@ -900,10 +997,9 @@
             const footer = document.getElementById('modal-footer');
 
             title.textContent = `蒐集魔藥：${item.name}`;
-            
             footer.innerHTML = `
                 <button class="rpg-btn" onclick="closeModal()">關閉</button>
-                <button class="rpg-btn" style="background-color:#5d4037" onclick="editPotionList(${idx})">📝 編輯欠繳清單</button>
+                <button class="rpg-btn" style="background-color:#5d4037" onclick="editPotionList(${idx})">📝 編輯魔藥清單</button>
             `;
             
             renderPotionList(idx);
@@ -917,7 +1013,7 @@
             let html = `<div class="potion-list">`;
             let allDone = item.tasks.length > 0;
             if(item.tasks.length === 0) {
-                html += `<div class="potion-empty-state">目前沒有欠繳紀錄<br>請點擊「編輯欠繳清單」來新增</div>`;
+                html += `<div class="potion-empty-state">目前沒有待蒐集的魔藥<br>請點擊「編輯魔藥清單」來新增</div>`;
                 allDone = false;
             } else {
                 item.tasks.forEach((task, tIdx) => {
@@ -955,7 +1051,7 @@
             const item = rec.dangerList[idx];
             const taskText = item.tasks.map(t => typeof t === 'string' ? t : t.desc).join('\n');
             const modal = document.getElementById('common-modal');
-            document.getElementById('modal-title').textContent = `編輯欠繳項目：${item.name}`;
+            document.getElementById('modal-title').textContent = `編輯魔藥清單：${item.name}`;
             document.getElementById('modal-content').innerHTML = `<textarea id="quick-edit-area" rows="8" placeholder="一行一項作業">${taskText}</textarea>`;
             document.getElementById('modal-footer').innerHTML = `
                 <button class="rpg-btn danger-btn" onclick="openDangerPotionModal(${idx})">取消</button>
@@ -999,6 +1095,26 @@
             showToast("更新成功", "success");
         }
 
+        function checkAllClear() {
+            if(hasCelebrated) return;
+            const rec = getDateRecord(currentDate);
+            if (rec.hwCorrect.length === 0) return;
+            let allDone = true;
+            for(let i=0; i<window.appData.students.length; i++) {
+                for(let j=0; j<rec.hwCorrect.length; j++) {
+                    if(!rec.status[`${i}_${j}`]) { allDone = false; break; }
+                }
+            }
+            if (rec.dangerList.length > 0) allDone = false;
+            if (allDone) {
+                document.getElementById('celebration-overlay').classList.add('active');
+                Sound.play('victory');
+                hasCelebrated = true;
+            }
+        }
+        function closeCelebration() { document.getElementById('celebration-overlay').classList.remove('active'); }
+
+
         function saveSettings() {
             const rec = getDateRecord(currentDate);
             const rawS = document.getElementById('input-students').value;
@@ -1027,9 +1143,61 @@
                 if (window.StorageSystem) {
                     window.StorageSystem.clear();
                 }
+                localStorage.removeItem('rpgClassManager_v6');
+                localStorage.removeItem('rpgClassManager_v5');
+                localStorage.removeItem('rpg_last_view');
+                localStorage.removeItem('rpg_last_date');
                 location.reload();
             }
         }
+
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.appData));
+            const downloadAnchorNode = document.createElement('a');
+            const dateStr = new Date().toISOString().split('T')[0];
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", `冒險者公會備份_${dateStr}.json`);
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+            showToast("備份檔案已下載！");
+        }
+
+        function importData(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const contents = e.target.result;
+                    const parsedData = JSON.parse(contents);
+                    if (parsedData.students && parsedData.records) {
+                        window.appData = parsedData;
+                        window.saveData();
+                        localStorage.removeItem('rpg_last_view');
+                        localStorage.removeItem('rpg_last_date');
+                        init(); 
+                        showToast("資料匯入成功！", "success");
+                    }
+                } catch (err) { alert("檔案讀取失敗"); }
+            };
+            reader.readAsText(file);
+            input.value = '';
+        }
+
+        function showToast(message, type) {
+            const toast = document.getElementById("toast");
+            toast.textContent = message;
+            toast.className = "show";
+            if(type === "success") {
+                toast.classList.add("success");
+            } else {
+                toast.classList.remove("success");
+            }
+            setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 2500);
+        }
+
+        init(); // Start
     </script>
 
     <!-- Cloud Module: Hardcoded Firebase Config for GitHub Pages -->
