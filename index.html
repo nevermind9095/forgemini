@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>冒險者公會：冒險日誌 v7.2 (魔藥治癒版)</title>
+    <title>冒險者公會：冒險日誌 v7.3 (穩定發布版)</title>
     <style>
         /* * =========================================
          * 全域設定
@@ -88,6 +88,7 @@
             padding: 2px 6px;
             border-radius: 4px;
             font-weight: normal;
+            display: none; /* 預設隱藏，有雲端設定才顯示 */
         }
         .mode-local { background: #ff9800; color: #fff; }
         .mode-cloud { background: #4caf50; color: #fff; }
@@ -176,7 +177,7 @@
         .cal-future { color: #999; font-style: italic; font-size: 0.8rem; }
 
         /* =========================================
-         * 任務板樣式 (優化)
+         * 任務板樣式
          * =========================================
          */
         .quest-split-view { display: flex; flex-direction: column; height: 100%; gap: 10px; }
@@ -192,8 +193,6 @@
             position: relative;
         }
         .quest-section:hover { background: rgba(255,255,255,0.6); }
-        
-        /* 修改 1: 提示詞移到中間 */
         .quest-section::after {
             content: '✎ 點擊編輯';
             position: absolute; 
@@ -216,7 +215,6 @@
             border-bottom: 3px dashed #5d4037; color: #3e2723; display: flex; align-items: center; gap: 10px; flex-shrink: 0; 
         }
         
-        /* 修改 2: 日期字體加粗圓潤 */
         .quest-date-tag { 
             font-size: 1.2rem; 
             color: #5d4037; 
@@ -307,28 +305,15 @@
         .modal-body textarea, .modal-body input { width: 100%; padding: 10px; border: 2px solid #ccc; border-radius: 4px; font-size: 1rem; background: #fff; }
         .modal-footer { display: flex; justify-content: flex-end; gap: 10px; }
 
-        /* 魔藥蒐集介面樣式 */
-        .potion-list {
-            display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto;
-        }
-        .potion-item {
-            display: flex; align-items: center; gap: 10px;
-            padding: 8px 12px; background: #fff; border: 2px solid #ccc; border-radius: 6px;
-            cursor: pointer; transition: all 0.2s;
-        }
+        /* 魔藥蒐集介面 */
+        .potion-list { display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; }
+        .potion-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #fff; border: 2px solid #ccc; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
         .potion-item:hover { background: #f0f0f0; }
         .potion-item.collected { background: #e8f5e9; border-color: #4caf50; color: #2e7d32; font-weight: bold; }
         .potion-icon { font-size: 1.5rem; }
         .potion-name { flex: 1; font-size: 1.1rem; }
-        
         .potion-empty-state { text-align: center; color: #999; font-style: italic; padding: 20px; }
-        
-        .potion-heal-btn {
-            background: #4caf50; color: white; border: none; padding: 12px;
-            border-radius: 8px; font-size: 1.2rem; font-weight: bold;
-            cursor: pointer; margin-top: 10px; display: none;
-            box-shadow: 0 4px 0 #2e7d32;
-        }
+        .potion-heal-btn { background: #4caf50; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 1.2rem; font-weight: bold; cursor: pointer; margin-top: 10px; display: none; box-shadow: 0 4px 0 #2e7d32; }
         .potion-heal-btn:active { transform: translateY(4px); box-shadow: none; }
         .potion-heal-btn.show { display: block; animation: pulse-green 1.5s infinite; }
         @keyframes pulse-green { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
@@ -337,7 +322,6 @@
         .celebration-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 3000; opacity: 0; visibility: hidden; transition: all 0.5s; backdrop-filter: blur(4px); }
         .celebration-overlay.active { opacity: 1; visibility: visible; }
         .celebration-overlay::before { content: ''; position: absolute; width: 150vmax; height: 150vmax; background: conic-gradient(from 0deg at 50% 50%, transparent 0deg, rgba(255, 223, 0, 0.2) 20deg, transparent 40deg, rgba(255, 223, 0, 0.2) 60deg, transparent 80deg, rgba(255, 223, 0, 0.2) 100deg, transparent 120deg, rgba(255, 223, 0, 0.2) 140deg, transparent 160deg, rgba(255, 223, 0, 0.2) 180deg, transparent 200deg, rgba(255, 223, 0, 0.2) 220deg, transparent 240deg, rgba(255, 223, 0, 0.2) 260deg, transparent 280deg, rgba(255, 223, 0, 0.2) 300deg, transparent 320deg, rgba(255, 223, 0, 0.2) 340deg, transparent 360deg); animation: rotate-bg 10s linear infinite; z-index: -1; opacity: 0; transition: opacity 0.5s; }
-        .celebration-overlay.active::before { opacity: 1; }
         @keyframes rotate-bg { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .celebration-modal { background: #fdf6e3; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100' opacity='0.05'%3E%3Cpath d='M0 0h100v100H0z' fill='%238b4513'/%3E%3C/svg%3E"); border: 6px double #8b4513; border-radius: 10px; padding: 40px 80px; text-align: center; box-shadow: 0 0 0 4px #d4af37, 0 0 0 8px #8b4513, 0 10px 50px rgba(0,0,0,0.8); transform: scale(0.5); transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); position: relative; max-width: 90%; }
         .celebration-overlay.active .celebration-modal { transform: scale(1); }
@@ -424,7 +408,7 @@
                         <input type="file" id="import-file" style="display:none" onchange="importData(this)">
                     </div>
                     <p style="color:#666; font-size:0.9rem; margin-top:10px; font-weight:bold;">
-                        ※ 支援：1. 本機執行時自動存於瀏覽器。 2. 線上分享時自動存於雲端。 3. 手動備份JSON檔。
+                        ※ 支援：1. 本機執行時自動存於瀏覽器 (Local Storage)。 2. 手動備份 JSON 檔案。 (GitHub 託管時自動切換為本機模式)
                     </p>
                 </div>
             </div>
@@ -459,7 +443,7 @@
 
     <div id="toast">訊息</div>
 
-    <!-- 基礎邏輯 Script -->
+    <!-- 核心邏輯 -->
     <script>
         const Sound = {
             ctx: null,
@@ -517,27 +501,51 @@
         const defaultStudents = [
             { name: "王小明", group: "第一組" }, { name: "李小華", group: "第一組" },
             { name: "張小美", group: "第二組" }, { name: "陳大文", group: "第二組" },
-            { name: "林小宏", group: "第三組" }, { name: "黃小芬", group: "第三組" }
+            { name: "林小宏", group: "第三組" }, { name: "黃小芬", group: "第三組" },
+            { name: "陳小明", group: "第四組" }, { name: "李大華", group: "第四組" },
+            { name: "王大明", group: "第五組" }, { name: "蔡小虎", group: "第五組" },
+            { name: "陳大明", group: "第六組" }, { name: "張大華", group: "第六組" },
+            { name: "林大明", group: "第七組" }, { name: "黃大華", group: "第七組" }
         ];
         window.appData = { students: defaultStudents, records: {} };
         let currentDate = "", viewMonth = new Date(), hasCelebrated = false;
-        let currentModalType = null; // 'write', 'correct', 'danger'
+        let currentModalType = null; 
         let currentEditingIndex = null; 
 
         function init() {
-            loadDataLocal();
-            const today = new Date();
-            const todayStr = `${today.getFullYear()}-${(today.getMonth()+1).toString().padStart(2,'0')}-${today.getDate().toString().padStart(2,'0')}`;
-            const lastView = localStorage.getItem('rpg_last_view');
-            const lastDate = localStorage.getItem('rpg_last_date');
-            currentDate = lastDate ? lastDate : todayStr;
-            if(!lastDate) getDateRecord(todayStr);
-            if (lastView && lastView !== 'calendar-view') {
-                openDate(currentDate, false);
-                switchView(lastView);
-            } else {
-                renderCalendar();
-                showCalendar();
+            try {
+                loadDataLocal();
+                
+                const today = new Date();
+                const todayStr = `${today.getFullYear()}-${(today.getMonth()+1).toString().padStart(2,'0')}-${today.getDate().toString().padStart(2,'0')}`;
+                const lastView = localStorage.getItem('rpg_last_view');
+                const lastDate = localStorage.getItem('rpg_last_date');
+                
+                if (lastDate) {
+                    currentDate = lastDate;
+                } else {
+                    currentDate = todayStr;
+                    getDateRecord(todayStr); // Ensure today exists
+                }
+
+                if (lastView && lastView !== 'calendar-view') {
+                    // Safe check if element exists before switching
+                    if(document.getElementById(lastView)) {
+                        openDate(currentDate, false);
+                        switchView(lastView);
+                    } else {
+                        // Fallback
+                        renderCalendar();
+                        showCalendar();
+                    }
+                } else {
+                    renderCalendar();
+                    showCalendar();
+                }
+            } catch(e) {
+                console.error("Init failed, resetting...", e);
+                localStorage.clear(); // Last resort
+                location.reload();
             }
         }
 
@@ -545,10 +553,14 @@
             const saved = localStorage.getItem('rpgClassManager_v6') || localStorage.getItem('rpgClassManager_v5');
             if (saved) {
                 try {
-                    window.appData = JSON.parse(saved);
+                    const parsed = JSON.parse(saved);
+                    window.appData = parsed;
                     if (!window.appData.records) window.appData.records = {};
                     if (!window.appData.students) window.appData.students = defaultStudents;
-                } catch(e) { window.appData = { students: defaultStudents, records: {} }; }
+                } catch(e) { 
+                    // Data corrupted, reset to default
+                    window.appData = { students: defaultStudents, records: {} }; 
+                }
             }
         }
 
@@ -559,17 +571,6 @@
             } catch (e) {}
         };
 
-        window.refreshUI = function() {
-            const currentView = document.querySelector('.panel.show').id;
-            if (currentView === 'calendar-view') renderCalendar();
-            else {
-                renderCalendar();
-                if(currentView === 'quest-board') renderQuestBoard();
-                if(currentView === 'adventurer-roster') renderRoster();
-                if(currentView === 'settings') renderSettingsInputs();
-            }
-        };
-
         function getDateRecord(dateStr) {
             if (!dateStr) return { hwWrite: [], hwCorrect: [], status: {}, dangerList: [] };
             if (!window.appData.records[dateStr]) {
@@ -577,10 +578,8 @@
                 const yesterday = new Date(dateStr); yesterday.setDate(yesterday.getDate() - 1);
                 const yStr = yesterday.toISOString().split('T')[0];
                 if (window.appData.records[yStr] && window.appData.records[yStr].dangerList.length > 0) {
-                    // Deep copy tasks if they exist
-                    const prevList = window.appData.records[yStr].dangerList;
-                    // Simple clone, tasks are new instances
-                    window.appData.records[dateStr].dangerList = JSON.parse(JSON.stringify(prevList));
+                    // Deep copy
+                    window.appData.records[dateStr].dangerList = JSON.parse(JSON.stringify(window.appData.records[yStr].dangerList));
                 }
             }
             return window.appData.records[dateStr];
@@ -706,7 +705,6 @@
             if(rec.dangerList.length === 0) dangerListDiv.innerHTML = '<div style="text-align:center; color:#999; padding:10px;">目前無人負傷</div>';
             else rec.dangerList.forEach((item, idx) => {
                 const name = typeof item === 'object' ? item.name : item;
-                // Change: Remove note display here
                 dangerListDiv.innerHTML += `<div class="danger-item" onclick="openDangerPotionModal(${idx})">
                     <span class="danger-item-name" title="${name}">${name}</span>
                     <button class="danger-remove-btn" onclick="event.stopPropagation(); removeFromDanger(${idx})">✕</button>
@@ -715,13 +713,6 @@
             dangerCard.appendChild(dangerListDiv);
             dangerCard.innerHTML += `<div class="danger-input-area"><input type="text" id="danger-input" class="danger-input" placeholder="輸入姓名..." onkeypress="handleDangerKeypress(event)"><button class="danger-add-btn" onclick="addToDanger()">＋</button></div>`;
             container.appendChild(dangerCard);
-        }
-
-        function renderSettingsInputs() {
-            const rec = getDateRecord(currentDate);
-            document.getElementById('input-students').value = window.appData.students.map(s => `${s.name}, ${s.group}`).join('\n');
-            document.getElementById('input-hw-write').value = rec.hwWrite.join('\n');
-            document.getElementById('input-hw-correct').value = rec.hwCorrect.join('\n');
         }
 
         function changeMonth(d) { viewMonth.setMonth(viewMonth.getMonth() + d); renderCalendar(); }
@@ -793,7 +784,6 @@
             const val = document.getElementById('danger-input').value.trim();
             if(val) {
                 Sound.play('click'); 
-                // Store as object with empty tasks array
                 getDateRecord(currentDate).dangerList.push({ name: val, tasks: [] });
                 window.saveData(); renderRoster(); document.getElementById('danger-input').focus();
             }
@@ -828,18 +818,12 @@
             modal.classList.add('active');
         }
 
-        // Potion Collection Modal
         function openDangerPotionModal(idx) {
             currentModalType = 'potion';
             currentEditingIndex = idx;
             const rec = getDateRecord(currentDate);
-            // Handle legacy string data or new object data
             let item = rec.dangerList[idx];
-            if (typeof item === 'string') {
-                item = { name: item, tasks: [] };
-                rec.dangerList[idx] = item; // convert on fly
-            }
-            // If no tasks property (legacy object), add it
+            if (typeof item === 'string') { item = { name: item, tasks: [] }; rec.dangerList[idx] = item; }
             if(!item.tasks) item.tasks = [];
 
             const modal = document.getElementById('common-modal');
@@ -849,7 +833,6 @@
 
             title.textContent = `蒐集魔藥：${item.name}`;
             
-            // Footer for this specific view
             footer.innerHTML = `
                 <button class="rpg-btn" onclick="closeModal()">關閉</button>
                 <button class="rpg-btn" style="background-color:#5d4037" onclick="editPotionList(${idx})">📝 編輯欠繳清單</button>
@@ -863,38 +846,22 @@
             const rec = getDateRecord(currentDate);
             const item = rec.dangerList[idx];
             const content = document.getElementById('modal-content');
-            
             let html = `<div class="potion-list">`;
             let allDone = item.tasks.length > 0;
-            
             if(item.tasks.length === 0) {
                 html += `<div class="potion-empty-state">目前沒有欠繳紀錄<br>請點擊「編輯欠繳清單」來新增</div>`;
                 allDone = false;
             } else {
                 item.tasks.forEach((task, tIdx) => {
-                    // task structure: { desc: "Math", done: false }
-                    // Handle legacy string tasks if any
                     if(typeof task === 'string') { task = { desc: task, done: false }; item.tasks[tIdx] = task; }
-                    
                     const icon = task.done ? '🧪' : '⚗️';
                     const cls = task.done ? 'potion-item collected' : 'potion-item';
                     if(!task.done) allDone = false;
-                    
-                    html += `
-                        <div class="${cls}" onclick="togglePotion(${idx}, ${tIdx})">
-                            <div class="potion-icon">${icon}</div>
-                            <div class="potion-name">${task.desc}</div>
-                        </div>
-                    `;
+                    html += `<div class="${cls}" onclick="togglePotion(${idx}, ${tIdx})"><div class="potion-icon">${icon}</div><div class="potion-name">${task.desc}</div></div>`;
                 });
             }
             html += `</div>`;
-            
-            // Heal button
-            if(allDone) {
-                html += `<button class="potion-heal-btn show" onclick="healStudent(${idx})">✨ 施放治癒魔法 (從名單移除)</button>`;
-            }
-            
+            if(allDone) html += `<button class="potion-heal-btn show" onclick="healStudent(${idx})">✨ 施放治癒魔法 (從名單移除)</button>`;
             content.innerHTML = html;
         }
 
@@ -910,7 +877,7 @@
         function healStudent(idx) {
             const rec = getDateRecord(currentDate);
             const name = rec.dangerList[idx].name;
-            removeFromDanger(idx); // reuse existing logic
+            removeFromDanger(idx); 
             closeModal();
             showToast(`${name} 已成功治癒！`);
         }
@@ -919,7 +886,6 @@
             const rec = getDateRecord(currentDate);
             const item = rec.dangerList[idx];
             const taskText = item.tasks.map(t => typeof t === 'string' ? t : t.desc).join('\n');
-            
             const modal = document.getElementById('common-modal');
             document.getElementById('modal-title').textContent = `編輯欠繳項目：${item.name}`;
             document.getElementById('modal-content').innerHTML = `<textarea id="quick-edit-area" rows="8" placeholder="一行一項作業">${taskText}</textarea>`;
@@ -934,14 +900,9 @@
             const item = rec.dangerList[idx];
             const text = document.getElementById('quick-edit-area').value;
             const lines = text.split('\n').map(t=>t.trim()).filter(t=>t);
-            
-            // Rebuild tasks array, trying to preserve status if possible (simple mapping)
-            // For simplicity, just rebuild. Completed status might be lost if renamed.
-            // To be user friendly, let's just map new strings to objects.
             item.tasks = lines.map(desc => ({ desc: desc, done: false }));
-            
             window.saveData();
-            openDangerPotionModal(idx); // Go back to interact view
+            openDangerPotionModal(idx);
         }
 
         function closeModal() {
@@ -952,23 +913,20 @@
         function saveModal() {
             Sound.play('click');
             const rec = getDateRecord(currentDate);
-            
             if (currentModalType === 'write') {
                 const val = document.getElementById('quick-edit-area').value;
                 rec.hwWrite = val.split('\n').map(t=>t.trim()).filter(t=>t);
                 window.saveData();
-                renderQuestBoard(); 
-                const setInput = document.getElementById('input-hw-write');
-                if(setInput) setInput.value = rec.hwWrite.join('\n');
+                const setInput = document.getElementById('input-hw-write'); if(setInput) setInput.value = rec.hwWrite.join('\n');
+                // Refresh only if current view is quest-board to avoid flicker
+                if(document.getElementById('quest-board').classList.contains('show')) renderQuestBoard();
             } else if (currentModalType === 'correct') {
                 const val = document.getElementById('quick-edit-area').value;
                 rec.hwCorrect = val.split('\n').map(t=>t.trim()).filter(t=>t);
                 window.saveData();
-                renderQuestBoard();
-                const setInput = document.getElementById('input-hw-correct');
-                if(setInput) setInput.value = rec.hwCorrect.join('\n');
+                const setInput = document.getElementById('input-hw-correct'); if(setInput) setInput.value = rec.hwCorrect.join('\n');
+                if(document.getElementById('quest-board').classList.contains('show')) renderQuestBoard();
             }
-            
             closeModal();
             showToast("更新成功", "success");
         }
@@ -998,8 +956,10 @@
 
         function clearAllData() {
             if(confirm('警告：重置系統？')) {
-                if(window.StorageSystem) window.StorageSystem.clear();
-                else { localStorage.removeItem('rpgClassManager_v6'); localStorage.removeItem('rpgClassManager_v5'); }
+                localStorage.removeItem('rpgClassManager_v6');
+                localStorage.removeItem('rpgClassManager_v5');
+                localStorage.removeItem('rpg_last_view');
+                localStorage.removeItem('rpg_last_date');
                 location.reload();
             }
         }
@@ -1034,64 +994,60 @@
             setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 2500);
         }
 
-        // Cloud Module
-        const StorageSystem = {
-            mode: 'local', db: null, auth: null, docRef: null,
-            init: async function() {
-                if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-                    try {
-                        const { initializeApp } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js');
-                        const { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
-                        const { getFirestore, doc, setDoc, onSnapshot } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
+        // Safe Cloud Module Loading (Will fail silently on local/github without config)
+        (async function() {
+            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                try {
+                    const { initializeApp } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js');
+                    const { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
+                    const { getFirestore, doc, setDoc, onSnapshot } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
 
-                        document.getElementById('storage-indicator').textContent = "雲端同步中...";
-                        document.getElementById('storage-indicator').className = "mode-cloud";
-                        this.mode = 'cloud';
+                    document.getElementById('storage-indicator').style.display = "inline";
+                    document.getElementById('storage-indicator').textContent = "雲端同步中...";
+                    document.getElementById('storage-indicator').className = "mode-cloud";
 
-                        const app = initializeApp(JSON.parse(__firebase_config));
-                        this.auth = getAuth(app);
-                        this.db = getFirestore(app);
-                        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                    const app = initializeApp(JSON.parse(__firebase_config));
+                    const auth = getAuth(app);
+                    const db = getFirestore(app);
+                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(this.auth, __initial_auth_token);
-                        else await signInAnonymously(this.auth);
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
+                    else await signInAnonymously(auth);
 
-                        onAuthStateChanged(this.auth, (user) => {
-                            if (user) {
-                                this.docRef = doc(this.db, 'artifacts', appId, 'users', user.uid, 'data', 'classManager');
-                                onSnapshot(this.docRef, (s) => {
-                                    if (s.exists()) {
-                                        window.appData = s.data();
-                                        window.refreshUI();
-                                        document.getElementById('storage-indicator').textContent = "☁️ 雲端已同步";
-                                    } else this.save(window.appData);
-                                });
-                                window.saveData = () => this.save(window.appData);
-                            }
-                        });
-                    } catch (e) { this.fallback(); }
-                }
-            },
-            fallback: function() {
-                document.getElementById('storage-indicator').textContent = "🏠 本地模式";
-                document.getElementById('storage-indicator').className = "mode-local";
-            },
-            save: function(data) {
-                if (this.docRef) {
-                    document.getElementById('storage-indicator').textContent = "同步中...";
-                    import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js').then(({ setDoc }) => {
-                        setDoc(this.docRef, data).then(() => {
-                            document.getElementById('storage-indicator').textContent = "☁️ 雲端已同步";
-                        }).catch(() => document.getElementById('storage-indicator').textContent = "⚠️ 同步失敗");
+                    onAuthStateChanged(auth, (user) => {
+                        if (user) {
+                            const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'data', 'classManager');
+                            onSnapshot(docRef, (s) => {
+                                if (s.exists()) {
+                                    window.appData = s.data();
+                                    // Refresh UI if data changed
+                                    const currentView = document.querySelector('.panel.show').id;
+                                    if(currentView !== 'calendar-view') {
+                                        if(currentView === 'quest-board') renderQuestBoard();
+                                        else if(currentView === 'adventurer-roster') renderRoster();
+                                        else if(currentView === 'settings') renderSettingsInputs();
+                                    } else renderCalendar();
+                                    
+                                    document.getElementById('storage-indicator').textContent = "☁️ 雲端已同步";
+                                } else {
+                                    // Initial save
+                                    setDoc(docRef, window.appData);
+                                }
+                            });
+                            // Override local save
+                            window.saveData = () => {
+                                localStorage.setItem('rpgClassManager_v6', JSON.stringify(window.appData));
+                                setDoc(docRef, window.appData).catch(console.error);
+                            };
+                        }
                     });
+                } catch (e) {
+                    console.log("Cloud init skipped or failed, running local only.");
                 }
-            },
-            clear: function() {
-                if(this.docRef) import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js').then(({ setDoc }) => setDoc(this.docRef, { students: [], records: {} }));
             }
-        };
-        window.StorageSystem = StorageSystem;
-        StorageSystem.init();
+        })();
+
+        init();
     </script>
 </body>
 </html>
