@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>冒險者公會：冒險日誌 v7.0 (雲端連線版)</title>
+    <title>冒險者公會：冒險日誌 v7.2 (魔藥治癒版)</title>
     <style>
-        /* =========================================
+        /* * =========================================
          * 全域設定
          * =========================================
          */
@@ -82,25 +82,15 @@
             border: 1px solid #8d6e63;
         }
 
-        /* 雲端狀態按鈕 */
-        #auth-btn {
+        #storage-indicator {
             font-size: 0.8rem;
             margin-left: 10px;
-            padding: 4px 10px;
+            padding: 2px 6px;
             border-radius: 4px;
-            font-weight: bold;
-            cursor: pointer;
-            border: 2px solid #fff;
-            box-shadow: 2px 2px 0 rgba(0,0,0,0.5);
-            transition: all 0.2s;
+            font-weight: normal;
         }
-        #auth-btn:active { transform: translate(2px, 2px); box-shadow: none; }
-        
-        .mode-local { background: #757575; color: #fff; border-color: #9e9e9e; }
-        .mode-cloud { background: #4caf50; color: #fff; border-color: #81c784; }
-        .mode-loading { background: #ff9800; color: #fff; animation: pulse 1s infinite; }
-
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+        .mode-local { background: #ff9800; color: #fff; }
+        .mode-cloud { background: #4caf50; color: #fff; }
 
         .nav-buttons { display: flex; gap: 8px; }
 
@@ -149,16 +139,6 @@
             overflow: hidden;
         }
         
-        /* 裝飾鉚釘 */
-        .panel::after, .panel::before {
-            content: ''; position: absolute; width: 10px; height: 10px;
-            background: #3e2723; border-radius: 50%;
-            box-shadow: inset 1px 1px 3px rgba(255,255,255,0.4);
-            top: 6px;
-        }
-        .panel::after { right: 6px; }
-        .panel::before { left: 6px; }
-
         .panel.show { display: flex; animation: popUp 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28); }
         @keyframes popUp { from { transform: scale(0.98); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
@@ -173,81 +153,27 @@
             margin-bottom: 10px;
             padding: 0 10px;
         }
-        
-        .calendar-title {
-            font-size: 2rem;
-            font-weight: 900;
-            color: #3e2723;
-            text-shadow: 1px 1px 0 rgba(255,255,255,0.5);
-        }
-
+        .calendar-title { font-size: 2rem; font-weight: 900; color: #3e2723; text-shadow: 1px 1px 0 rgba(255,255,255,0.5); }
         .calendar-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            grid-template-rows: 30px repeat(auto-fill, 1fr); /* Header + Days */
-            gap: 10px;
-            height: 100%;
-            overflow-y: auto;
-            padding: 5px;
+            grid-template-rows: 30px repeat(auto-fill, 1fr); 
+            gap: 10px; height: 100%; overflow-y: auto; padding: 5px;
         }
-
-        .day-name {
-            text-align: center;
-            font-weight: bold;
-            color: #5d4037;
-            border-bottom: 2px solid #5d4037;
-        }
-
+        .day-name { text-align: center; font-weight: bold; color: #5d4037; border-bottom: 2px solid #5d4037; }
         .calendar-cell {
-            background: rgba(255,255,255,0.5);
-            border: 2px solid #8d6e63;
-            border-radius: 6px;
-            padding: 5px;
-            min-height: 80px;
-            cursor: pointer;
-            transition: all 0.2s;
-            position: relative;
-            display: flex;
-            flex-direction: column;
+            background: rgba(255,255,255,0.5); border: 2px solid #8d6e63; border-radius: 6px;
+            padding: 5px; min-height: 80px; cursor: pointer; transition: all 0.2s;
+            position: relative; display: flex; flex-direction: column;
         }
-
-        .calendar-cell:hover {
-            background: #fff;
-            transform: translateY(-2px);
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
-            z-index: 2;
-        }
-
-        .calendar-cell.empty {
-            background: transparent;
-            border: none;
-            cursor: default;
-        }
-
-        .calendar-cell.today {
-            border: 3px solid var(--gold-accent);
-            background: #fff8e1;
-        }
-
-        .date-num {
-            font-size: 1.2rem;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        /* 月曆狀態標籤 */
-        .cal-status {
-            font-size: 0.8rem;
-            padding: 2px 4px;
-            border-radius: 4px;
-            margin-top: 2px;
-            text-align: center;
-            font-weight: bold;
-        }
+        .calendar-cell:hover { background: #fff; transform: translateY(-2px); box-shadow: 2px 2px 5px rgba(0,0,0,0.2); z-index: 2; }
+        .calendar-cell.empty { background: transparent; border: none; cursor: default; pointer-events: none; }
+        .calendar-cell.today { border: 3px solid var(--gold-accent); background: #fff8e1; }
+        .date-num { font-size: 1.2rem; font-weight: bold; margin-bottom: 5px; }
+        .cal-status { font-size: 0.8rem; padding: 2px 4px; border-radius: 4px; margin-top: 2px; text-align: center; font-weight: bold; }
         .cal-danger { background: #ffcdd2; color: #c62828; border: 1px solid #c62828; }
         .cal-safe { background: #c8e6c9; color: #2e7d32; border: 1px solid #2e7d32; }
         .cal-future { color: #999; font-style: italic; font-size: 0.8rem; }
-
 
         /* =========================================
          * 任務板樣式 (優化)
@@ -261,129 +187,94 @@
             padding: 10px 15px; 
             display: flex; flex-direction: column; 
             min-height: 0; 
+            cursor: pointer; 
+            transition: background 0.2s;
+            position: relative;
         }
+        .quest-section:hover { background: rgba(255,255,255,0.6); }
+        
+        /* 修改 1: 提示詞移到中間 */
+        .quest-section::after {
+            content: '✎ 點擊編輯';
+            position: absolute; 
+            top: 5px; left: 50%; transform: translateX(-50%);
+            font-size: 0.85rem; color: #8d6e63; 
+            opacity: 0; transition: opacity 0.2s;
+            font-weight: bold;
+            background: rgba(255,255,255,0.8);
+            padding: 2px 8px;
+            border-radius: 10px;
+            pointer-events: none;
+        }
+        .quest-section:hover::after { opacity: 1; }
+
         .new-quest { flex: 2; }
         .fix-quest { flex: 1; }
         
         .quest-title { 
-            font-size: 1.6rem; 
+            font-size: 1.6rem; font-weight: 900; margin-bottom: 8px; padding-bottom: 4px; 
+            border-bottom: 3px dashed #5d4037; color: #3e2723; display: flex; align-items: center; gap: 10px; flex-shrink: 0; 
+        }
+        
+        /* 修改 2: 日期字體加粗圓潤 */
+        .quest-date-tag { 
+            font-size: 1.2rem; 
+            color: #5d4037; 
+            font-family: "Arial Black", "Microsoft JhengHei", sans-serif;
             font-weight: 900; 
-            margin-bottom: 8px; 
-            padding-bottom: 4px; 
-            border-bottom: 3px dashed #5d4037; 
-            color: #3e2723; 
-            display: flex; align-items: center; gap: 10px; flex-shrink: 0; 
+            margin-left: auto; 
+            letter-spacing: 1px;
         }
         
         .quest-list { list-style: none; padding: 0; margin: 0; flex: 1; overflow-y: auto; }
-        .quest-list li { 
-            padding: 8px 0; 
-            border-bottom: 1px solid rgba(0,0,0,0.1); 
-            display: flex; align-items: center; 
-            break-inside: avoid; 
-        }
+        .quest-list li { padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.1); display: flex; align-items: center; break-inside: avoid; }
         
-        /* 新委託：三欄式 + 大字體 */
-        .new-quest .quest-list { 
-            column-count: 3;
-            column-gap: 30px; 
-            display: block; 
-            font-size: 2.2rem;
-            font-weight: bold;
-        }
+        .new-quest .quest-list { column-count: 3; column-gap: 30px; display: block; font-size: 2.2rem; font-weight: bold; }
         .new-quest .quest-title { color: #1b5e20; border-color: #1b5e20; }
         .new-quest .quest-list li::before { content: '🛡️'; margin-right: 10px; font-size: 1.8rem; }
         .new-quest .quest-list li { color: #1b5e20; }
+        .new-quest .quest-list li.reminder-blue { color: #0d47a1; }
+        .new-quest .quest-list li.reminder-blue::before { content: '⚠️'; }
         
-        /* 藍色提醒樣式 */
-        .new-quest .quest-list li.reminder-blue {
-            color: #0d47a1; /* 深藍色 */
-        }
-        .new-quest .quest-list li.reminder-blue::before {
-            content: '⚠️'; /* 替換圖示 */
-        }
-        
-        /* 訂正：三欄式 + 調整後字體 */
-        .fix-quest .quest-list { 
-            column-count: 3; /* 改為三欄 */
-            column-gap: 30px; 
-            display: block; 
-            font-size: 1.6rem; 
-            font-weight: bold;
-        }
+        .fix-quest .quest-list { column-count: 3; column-gap: 30px; display: block; font-size: 1.6rem; font-weight: bold; }
         .fix-quest .quest-title { color: #b71c1c; border-color: #b71c1c; }
         .fix-quest .quest-list li::before { content: '👾'; margin-right: 8px; font-size: 1.4rem; }
         .fix-quest .quest-list li { color: #b71c1c; }
 
         /* =========================================
-         * 名冊樣式 (優化)
+         * 名冊樣式
          * =========================================
          */
-        .roster-container { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); 
-            gap: 12px; 
-            padding-bottom: 5px; 
-            overflow-y: auto; 
-            flex: 1; 
-            align-content: start; 
-        }
-        
-        .group-card { background: #fff8e1; border: 2px solid #8d6e63; border-radius: 5px; box-shadow: 2px 2px 0 rgba(0,0,0,0.1); display: flex; flex-direction: column; transition: transform 0.1s; height: fit-content; }
-        .group-card:hover { border-color: #5d4037; z-index: 2; }
-        .group-card.drag-over { border: 2px solid var(--gold-accent); box-shadow: 0 0 15px var(--gold-accent); background: #fffde7; transform: scale(1.02); z-index: 10; }
-        .group-header { background: #5d4037; color: #fff; padding: 4px 8px; font-size: 1rem; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3e2723; height: 28px; pointer-events: none; }
+        .roster-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; padding-bottom: 5px; overflow-y: auto; flex: 1; align-content: start; }
+        .group-card { background: #fff8e1; border: 2px solid #8d6e63; border-radius: 5px; box-shadow: 2px 2px 0 rgba(0,0,0,0.1); display: flex; flex-direction: column; height: fit-content; }
+        .group-header { background: #5d4037; color: #fff; padding: 4px 8px; font-size: 1rem; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3e2723; height: 28px; }
         .group-bonus { background: var(--gold-accent); color: #3e2723; padding: 1px 6px; border-radius: 10px; font-size: 0.8rem; font-weight: 900; border: 1px solid #fff; box-shadow: 0 0 5px var(--gold-accent); display: none; animation: shine 1.5s infinite alternate; }
-        @keyframes shine { from { filter: brightness(1); } to { filter: brightness(1.2); } }
         .group-bonus.active { display: block; }
         .student-list { padding: 3px 5px; flex: 1; display: flex; flex-direction: column; min-height: 50px; }
-        
-        .student-row { display: flex; align-items: center; margin-bottom: 2px; border-bottom: 1px dashed #ccc; padding-bottom: 2px; height: 30px; cursor: grab; transition: background-color 0.2s; }
-        .student-row:active { cursor: grabbing; }
-        .student-row:hover { background-color: rgba(0,0,0,0.03); }
-        .student-row:last-child { border-bottom: none; margin-bottom: 0; }
-        
-        .s-name { width: 64px; font-size: 1rem; font-weight: bold; color: #3e2723; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; margin-right: 4px; pointer-events: none; }
-        
-        /* 增加按鈕間距 */
+        .student-row { display: flex; align-items: center; margin-bottom: 2px; border-bottom: 1px dashed #ccc; padding-bottom: 2px; height: 30px; }
+        .s-name { width: 64px; font-size: 1rem; font-weight: bold; color: #3e2723; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 4px; }
         .task-container { flex: 1; display: flex; gap: 6px; flex-wrap: nowrap; overflow: hidden; }
-        
-        .check-btn { 
-            flex: 1; min-width: 0; height: 26px; 
-            border: 1px solid var(--status-incomplete-border); 
-            background: var(--status-incomplete-bg); 
-            color: var(--status-incomplete-text); 
-            border-radius: 3px; 
-            font-weight: bold; 
-            font-size: 0.85rem; 
-            cursor: pointer; 
-            display: flex; align-items: center; justify-content: center; 
-            position: relative; padding: 0 1px; 
-        }
-        .check-btn:hover { filter: brightness(0.95); }
-        .check-btn span { 
-            white-space: nowrap; 
-            overflow: hidden; 
-            text-overflow: ellipsis; 
-            width: 100%; 
-            text-align: center; 
-            padding: 0 1px; 
-            letter-spacing: 0; 
-            font-size: 0.85rem; 
-        }
+        .check-btn { flex: 1; min-width: 0; height: 26px; border: 1px solid var(--status-incomplete-border); background: var(--status-incomplete-bg); color: var(--status-incomplete-text); border-radius: 3px; font-weight: bold; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0 1px; }
+        .check-btn span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; text-align: center; }
         .check-btn.completed { border-color: var(--status-complete-border); background: var(--status-complete-bg); color: var(--status-complete-text); }
-        .check-btn.completed::after { content: '魔物討伐'; font-weight: 900; font-size: 0.85rem; white-space: nowrap; overflow: hidden; letter-spacing: -1px; }
+        .check-btn.completed::after { content: '魔物討伐'; font-weight: 900; font-size: 0.85rem; }
         .check-btn.completed span { display: none; }
         
         /* 負傷名單 */
-        .danger-zone-card { background: #ffebee; border: 3px solid #b71c1c; box-shadow: 4px 4px 10px rgba(183, 28, 28, 0.3); display: flex; flex-direction: column; height: fit-content; }
+        .danger-zone-card { background: #ffebee; border: 3px solid #b71c1c; box-shadow: 4px 4px 10px rgba(183, 28, 28, 0.3); }
         .danger-zone-header { background: #b71c1c; color: #fff; padding: 4px 8px; font-size: 1.1rem; font-weight: 900; display: flex; align-items: center; justify-content: center; gap: 8px; height: 32px; border-bottom: 2px solid #7f0000; animation: pulse-red 2s infinite; }
-        @keyframes pulse-red { 0% { background-color: #b71c1c; } 50% { background-color: #c62828; } 100% { background-color: #b71c1c; } }
         .danger-list { padding: 5px; flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; overflow-y: auto; max-height: 300px; }
         @media (max-width: 800px) { .danger-list { grid-template-columns: 1fr 1fr; } }
-        .danger-item { background: #fff; border: 1px solid #ef9a9a; color: #b71c1c; padding: 0; border-radius: 4px; font-weight: bold; display: flex; justify-content: space-between; align-items: stretch; font-size: 0.9rem; height: 28px; overflow: hidden; }
+        
+        .danger-item { 
+            background: #fff; border: 1px solid #ef9a9a; color: #b71c1c; padding: 0; border-radius: 4px; 
+            font-weight: bold; display: flex; justify-content: space-between; align-items: stretch; 
+            font-size: 0.9rem; height: 28px; overflow: hidden; cursor: pointer; transition: transform 0.1s;
+        }
+        .danger-item:hover { background-color: #ffebee; transform: scale(1.02); }
         .danger-item-name { padding: 0 6px; display: flex; align-items: center; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .danger-remove-btn { background: #ffcdd2; color: #c62828; border: none; border-left: 1px solid #ef9a9a; width: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: 900; transition: background 0.2s; outline: none; }
+        
+        .danger-remove-btn { background: #ffcdd2; color: #c62828; border: none; border-left: 1px solid #ef9a9a; width: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: 900; transition: background 0.2s; }
         .danger-remove-btn:hover { background: #e57373; color: white; }
         .danger-input-area { padding: 5px; border-top: 2px solid #ef9a9a; display: flex; gap: 5px; }
         .danger-input { flex: 1; border: 1px solid #ef9a9a; border-radius: 3px; padding: 4px; font-size: 0.9rem; }
@@ -397,148 +288,70 @@
         .toolbar { margin-top: 10px; display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0; }
         .danger-btn { background-color: #ffebee; border-color: #c62828; color: #c62828; }
 
-        /* Toast */
+        /* 通用彈窗 */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 4000;
+            display: none; justify-content: center; align-items: center;
+            backdrop-filter: blur(2px);
+        }
+        .modal-overlay.active { display: flex; }
+        
+        .modal-box {
+            background: #fffbf0; border: 4px solid #8d6e63; border-radius: 8px;
+            width: 500px; max-width: 90%; padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: flex; flex-direction: column; gap: 15px;
+        }
+        .modal-header { font-size: 1.3rem; font-weight: bold; color: #3e2723; border-bottom: 2px solid #8d6e63; padding-bottom: 10px; }
+        .modal-body textarea, .modal-body input { width: 100%; padding: 10px; border: 2px solid #ccc; border-radius: 4px; font-size: 1rem; background: #fff; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; }
+
+        /* 魔藥蒐集介面樣式 */
+        .potion-list {
+            display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto;
+        }
+        .potion-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 12px; background: #fff; border: 2px solid #ccc; border-radius: 6px;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .potion-item:hover { background: #f0f0f0; }
+        .potion-item.collected { background: #e8f5e9; border-color: #4caf50; color: #2e7d32; font-weight: bold; }
+        .potion-icon { font-size: 1.5rem; }
+        .potion-name { flex: 1; font-size: 1.1rem; }
+        
+        .potion-empty-state { text-align: center; color: #999; font-style: italic; padding: 20px; }
+        
+        .potion-heal-btn {
+            background: #4caf50; color: white; border: none; padding: 12px;
+            border-radius: 8px; font-size: 1.2rem; font-weight: bold;
+            cursor: pointer; margin-top: 10px; display: none;
+            box-shadow: 0 4px 0 #2e7d32;
+        }
+        .potion-heal-btn:active { transform: translateY(4px); box-shadow: none; }
+        .potion-heal-btn.show { display: block; animation: pulse-green 1.5s infinite; }
+        @keyframes pulse-green { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+
+        /* 慶祝視窗 */
+        .celebration-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 3000; opacity: 0; visibility: hidden; transition: all 0.5s; backdrop-filter: blur(4px); }
+        .celebration-overlay.active { opacity: 1; visibility: visible; }
+        .celebration-overlay::before { content: ''; position: absolute; width: 150vmax; height: 150vmax; background: conic-gradient(from 0deg at 50% 50%, transparent 0deg, rgba(255, 223, 0, 0.2) 20deg, transparent 40deg, rgba(255, 223, 0, 0.2) 60deg, transparent 80deg, rgba(255, 223, 0, 0.2) 100deg, transparent 120deg, rgba(255, 223, 0, 0.2) 140deg, transparent 160deg, rgba(255, 223, 0, 0.2) 180deg, transparent 200deg, rgba(255, 223, 0, 0.2) 220deg, transparent 240deg, rgba(255, 223, 0, 0.2) 260deg, transparent 280deg, rgba(255, 223, 0, 0.2) 300deg, transparent 320deg, rgba(255, 223, 0, 0.2) 340deg, transparent 360deg); animation: rotate-bg 10s linear infinite; z-index: -1; opacity: 0; transition: opacity 0.5s; }
+        .celebration-overlay.active::before { opacity: 1; }
+        @keyframes rotate-bg { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .celebration-modal { background: #fdf6e3; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100' opacity='0.05'%3E%3Cpath d='M0 0h100v100H0z' fill='%238b4513'/%3E%3C/svg%3E"); border: 6px double #8b4513; border-radius: 10px; padding: 40px 80px; text-align: center; box-shadow: 0 0 0 4px #d4af37, 0 0 0 8px #8b4513, 0 10px 50px rgba(0,0,0,0.8); transform: scale(0.5); transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); position: relative; max-width: 90%; }
+        .celebration-overlay.active .celebration-modal { transform: scale(1); }
+        .celebration-icon { font-size: 6rem; margin-bottom: 15px; animation: float-icon 2s ease-in-out infinite; text-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .celebration-title { font-size: 3.5rem; font-weight: 900; color: #ffd700; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px; background: linear-gradient(to bottom, #fff7cc 0%, #ffd700 50%, #b8860b 51%, #d4af37 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(2px 2px 0px #5d4037); font-family: "Arial Black", "Heiti TC", sans-serif; }
+        .celebration-subtitle { font-size: 1.8rem; font-weight: bold; color: #5d4037; border-top: 2px solid #d4af37; border-bottom: 2px solid #d4af37; padding: 10px 0; display: inline-block; min-width: 300px; }
+        @keyframes float-icon { 0%, 100% {transform: translateY(0);} 50% {transform: translateY(-15px);} }
+        .close-celebration { position: absolute; top: -25px; right: -25px; font-size: 1.5rem; cursor: pointer; color: #fff; background: #b71c1c; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 2px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.3); z-index: 10; }
+        .close-celebration:hover { background: #ff5252; transform: scale(1.1); }
+
         #toast { visibility: hidden; min-width: 250px; background-color: rgba(40, 40, 40, 0.9); color: #fff; text-align: center; border-radius: 4px; padding: 12px; position: fixed; z-index: 2000; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 1rem; opacity: 0; transition: opacity 0.3s, bottom 0.3s; pointer-events: none; }
         #toast.show { visibility: visible; opacity: 1; bottom: 50px; }
         #toast.success { background-color: rgba(27, 94, 32, 0.95); }
-
-        /* Helper Class */
         .hidden { display: none !important; }
-
-        /* 慶祝視窗樣式 (JRPG 風格) */
-        .celebration-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); /* 稍微加深 */
-            display: flex; justify-content: center; align-items: center;
-            z-index: 3000;
-            opacity: 0; visibility: hidden;
-            transition: all 0.5s;
-            backdrop-filter: blur(4px);
-        }
-        .celebration-overlay.active { opacity: 1; visibility: visible; }
-
-        /* 光芒背景動畫 */
-        .celebration-overlay::before {
-            content: '';
-            position: absolute;
-            width: 150vmax;
-            height: 150vmax;
-            background: conic-gradient(
-                from 0deg at 50% 50%, 
-                transparent 0deg, 
-                rgba(255, 223, 0, 0.2) 20deg, 
-                transparent 40deg, 
-                rgba(255, 223, 0, 0.2) 60deg, 
-                transparent 80deg, 
-                rgba(255, 223, 0, 0.2) 100deg, 
-                transparent 120deg, 
-                rgba(255, 223, 0, 0.2) 140deg, 
-                transparent 160deg, 
-                rgba(255, 223, 0, 0.2) 180deg, 
-                transparent 200deg, 
-                rgba(255, 223, 0, 0.2) 220deg, 
-                transparent 240deg, 
-                rgba(255, 223, 0, 0.2) 260deg, 
-                transparent 280deg, 
-                rgba(255, 223, 0, 0.2) 300deg, 
-                transparent 320deg, 
-                rgba(255, 223, 0, 0.2) 340deg, 
-                transparent 360deg
-            );
-            animation: rotate-bg 10s linear infinite;
-            z-index: -1;
-            opacity: 0;
-            transition: opacity 0.5s;
-        }
-        .celebration-overlay.active::before { opacity: 1; }
-
-        @keyframes rotate-bg {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        
-        /* 捲軸風格視窗 */
-        .celebration-modal {
-            background: #fdf6e3;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100' opacity='0.05'%3E%3Cpath d='M0 0h100v100H0z' fill='%238b4513'/%3E%3C/svg%3E");
-            border: 6px double #8b4513;
-            border-radius: 10px;
-            padding: 40px 80px;
-            text-align: center;
-            box-shadow: 
-                0 0 0 4px #d4af37, /* 內金邊 */
-                0 0 0 8px #8b4513, /* 外框 */
-                0 10px 50px rgba(0,0,0,0.8);
-            transform: scale(0.5);
-            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            position: relative;
-            max-width: 90%;
-        }
-        .celebration-overlay.active .celebration-modal { transform: scale(1); }
-
-        /* 裝飾角落 */
-        .celebration-modal::after, .celebration-modal::before {
-            content: '❖';
-            position: absolute;
-            font-size: 2rem;
-            color: #d4af37;
-            top: 10px;
-        }
-        .celebration-modal::before { left: 15px; }
-        .celebration-modal::after { right: 15px; }
-
-        .celebration-icon { 
-            font-size: 6rem; 
-            margin-bottom: 15px; 
-            animation: float-icon 2s ease-in-out infinite; 
-            text-shadow: 0 5px 15px rgba(0,0,0,0.3);
-        }
-
-        /* 經典遊戲字體風格 */
-        .celebration-title { 
-            font-size: 3.5rem; 
-            font-weight: 900; 
-            color: #ffd700; 
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 15px; 
-            /* 模擬金屬質感文字 */
-            background: linear-gradient(to bottom, #fff7cc 0%, #ffd700 50%, #b8860b 51%, #d4af37 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            filter: drop-shadow(2px 2px 0px #5d4037);
-            font-family: "Arial Black", "Heiti TC", sans-serif;
-        }
-
-        .celebration-subtitle { 
-            font-size: 1.8rem; 
-            font-weight: bold; 
-            color: #5d4037; 
-            border-top: 2px solid #d4af37;
-            border-bottom: 2px solid #d4af37;
-            padding: 10px 0;
-            display: inline-block;
-            min-width: 300px;
-        }
-        
-        @keyframes float-icon {
-            0%, 100% {transform: translateY(0);}
-            50% {transform: translateY(-15px);}
-        }
-        
-        .close-celebration {
-            position: absolute; top: -25px; right: -25px;
-            font-size: 1.5rem; cursor: pointer; 
-            color: #fff; background: #b71c1c;
-            width: 40px; height: 40px;
-            border-radius: 50%;
-            display: flex; justify-content: center; align-items: center;
-            border: 2px solid #fff;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-            z-index: 10;
-        }
-        .close-celebration:hover { background: #ff5252; transform: scale(1.1); }
 
     </style>
 </head>
@@ -548,7 +361,7 @@
         <h1>
             🛡️ 冒險者公會 
             <span id="current-date-display" class="hidden"></span>
-            <button id="auth-btn" class="mode-local" onclick="handleAuth()">☁️ 登入雲端</button>
+            <span id="storage-indicator" class="mode-local">本地模式</span>
         </h1>
         <div class="nav-buttons" id="day-nav-buttons" style="display:none;">
             <button class="rpg-btn" onclick="Sound.play('click'); showCalendar()">📖 回到冒險者日誌</button>
@@ -569,18 +382,17 @@
                     <button class="rpg-btn" onclick="Sound.play('click'); changeMonth(1)">下個月 ▶</button>
                 </div>
             </div>
-            <div id="calendar-grid" class="calendar-grid">
-                </div>
+            <div id="calendar-grid" class="calendar-grid"></div>
         </div>
 
         <div id="quest-board" class="panel">
             <div class="quest-split-view">
-                <div class="quest-section new-quest">
-                    <div class="quest-title">📜 本日發布新委託</div>
+                <div class="quest-section new-quest" onclick="openQuickEdit('write')">
+                    <div class="quest-title">📜 本日發布新委託 <span class="quest-date-tag" id="quest-date-1"></span></div>
                     <ul id="hw-write-list" class="quest-list"><li>載入中...</li></ul>
                 </div>
-                <div class="quest-section fix-quest">
-                    <div class="quest-title">⚔️ 剩餘魔物討伐</div>
+                <div class="quest-section fix-quest" onclick="openQuickEdit('correct')">
+                    <div class="quest-title">⚔️ 剩餘魔物討伐 <span class="quest-date-tag" id="quest-date-2"></span></div>
                     <ul id="hw-correct-list" class="quest-list"><li>載入中...</li></ul>
                 </div>
             </div>
@@ -596,7 +408,6 @@
                     <label>冒險者名冊 (全域設定)</label>
                     <textarea id="input-students" placeholder="王小明, 第一組&#10;李小華, 第一組"></textarea>
                 </div>
-                
                 <div class="input-card">
                     <label>發布委託 (<span id="setting-date-label">本日</span>)<br><small style="color:#d84315; font-weight:normal;">(前方加 * 可變藍色提醒)</small></label>
                     <textarea id="input-hw-write" placeholder="*補帶美勞用具&#10;國語 L5 生字"></textarea>
@@ -605,7 +416,6 @@
                     <label>魔物討伐 (<span id="setting-date-label-2">本日</span>)</label>
                     <textarea id="input-hw-correct" placeholder="數學習作 P.28&#10;國語聽寫訂正"></textarea>
                 </div>
-
                 <div class="input-card" style="grid-column: span 3;">
                     <label>資料備份與還原</label>
                     <div style="display: flex; gap: 10px; padding-top: 10px;">
@@ -614,7 +424,7 @@
                         <input type="file" id="import-file" style="display:none" onchange="importData(this)">
                     </div>
                     <p style="color:#666; font-size:0.9rem; margin-top:10px; font-weight:bold;">
-                        ※ 支援：1. 本機執行時自動存於瀏覽器。 2. 線上登入後自動存於雲端 (Google Drive/Firestore)。 3. 手動匯出 JSON。
+                        ※ 支援：1. 本機執行時自動存於瀏覽器。 2. 線上分享時自動存於雲端。 3. 手動備份JSON檔。
                     </p>
                 </div>
             </div>
@@ -624,6 +434,18 @@
             </div>
         </div>
 
+    </div>
+
+    <!-- 通用編輯彈窗 -->
+    <div id="common-modal" class="modal-overlay" onclick="closeModal()">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <div class="modal-header" id="modal-title">標題</div>
+            <div class="modal-body" id="modal-content"></div>
+            <div class="modal-footer" id="modal-footer">
+                <button class="rpg-btn danger-btn" onclick="closeModal()">取消</button>
+                <button class="rpg-btn" onclick="saveModal()">確定</button>
+            </div>
+        </div>
     </div>
 
     <div id="celebration-overlay" class="celebration-overlay" onclick="closeCelebration()">
@@ -637,134 +459,79 @@
 
     <div id="toast">訊息</div>
 
+    <!-- 基礎邏輯 Script -->
     <script>
-        // ================= 音效系統 (Web Audio API) =================
         const Sound = {
             ctx: null,
             init: function() {
                 if (!this.ctx) {
                     const AudioContext = window.AudioContext || window.webkitAudioContext;
-                    if (AudioContext) {
-                        this.ctx = new AudioContext();
-                    }
+                    if (AudioContext) { this.ctx = new AudioContext(); }
                 }
-                if (this.ctx && this.ctx.state === 'suspended') {
-                    this.ctx.resume();
-                }
+                if (this.ctx && this.ctx.state === 'suspended') { this.ctx.resume(); }
             },
             play: function(type) {
                 this.init();
                 if (!this.ctx) return;
-
                 const t = this.ctx.currentTime;
                 const osc = this.ctx.createOscillator();
                 const gain = this.ctx.createGain();
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
+                osc.connect(gain); gain.connect(this.ctx.destination);
 
                 if (type === 'click') {
-                    osc.type = 'triangle';
-                    osc.frequency.setValueAtTime(400, t);
+                    osc.type = 'triangle'; osc.frequency.setValueAtTime(400, t);
                     osc.frequency.exponentialRampToValueAtTime(100, t + 0.1);
-                    gain.gain.setValueAtTime(0.1, t);
-                    gain.gain.linearRampToValueAtTime(0, t + 0.1);
-                    osc.start(t);
-                    osc.stop(t + 0.1);
+                    gain.gain.setValueAtTime(0.1, t); gain.gain.linearRampToValueAtTime(0, t + 0.1);
+                    osc.start(t); osc.stop(t + 0.1);
                 } else if (type === 'success') {
-                    osc.type = 'square';
-                    osc.frequency.setValueAtTime(880, t);
+                    osc.type = 'square'; osc.frequency.setValueAtTime(880, t);
                     osc.frequency.linearRampToValueAtTime(1760, t + 0.1);
-                    gain.gain.setValueAtTime(0.05, t);
-                    gain.gain.linearRampToValueAtTime(0, t + 0.3);
-                    osc.start(t);
-                    osc.stop(t + 0.3);
+                    gain.gain.setValueAtTime(0.05, t); gain.gain.linearRampToValueAtTime(0, t + 0.3);
+                    osc.start(t); osc.stop(t + 0.3);
                 } else if (type === 'cancel') {
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(150, t);
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, t);
                     osc.frequency.linearRampToValueAtTime(100, t + 0.1);
-                    gain.gain.setValueAtTime(0.05, t);
-                    gain.gain.linearRampToValueAtTime(0, t + 0.15);
-                    osc.start(t);
-                    osc.stop(t + 0.15);
+                    gain.gain.setValueAtTime(0.05, t); gain.gain.linearRampToValueAtTime(0, t + 0.15);
+                    osc.start(t); osc.stop(t + 0.15);
                 } else if (type === 'victory') {
                     const now = t;
-                    const playNote = (freq, startTime, duration, type = 'square') => {
-                        const o = this.ctx.createOscillator();
-                        const g = this.ctx.createGain();
-                        o.connect(g);
-                        g.connect(this.ctx.destination);
-                        o.type = type;
-                        o.frequency.value = freq;
-                        g.gain.setValueAtTime(0.01, startTime);
-                        g.gain.linearRampToValueAtTime(0.1, startTime + 0.05); 
-                        g.gain.exponentialRampToValueAtTime(0.08, startTime + 0.1); 
-                        g.gain.setValueAtTime(0.08, startTime + duration - 0.05); 
-                        g.gain.exponentialRampToValueAtTime(0.001, startTime + duration); 
-                        o.start(startTime);
-                        o.stop(startTime + duration);
+                    const playNote = (freq, start, dur, type='square') => {
+                        const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                        o.connect(g); g.connect(this.ctx.destination);
+                        o.type = type; o.frequency.value = freq;
+                        g.gain.setValueAtTime(0.01, start); g.gain.linearRampToValueAtTime(0.1, start + 0.05);
+                        g.gain.exponentialRampToValueAtTime(0.08, start + 0.1); g.gain.setValueAtTime(0.08, start + dur - 0.05);
+                        g.gain.exponentialRampToValueAtTime(0.001, start + dur);
+                        o.start(start); o.stop(start + dur);
                     };
-
-                    playNote(523.25, now + 0.0, 0.1);
-                    playNote(523.25, now + 0.15, 0.1);
-                    playNote(523.25, now + 0.3, 0.1);
-                    playNote(523.25, now + 0.45, 0.4);  // C5
-                    playNote(415.30, now + 0.85, 0.4);  // Ab4
-                    playNote(466.16, now + 1.25, 0.4);  // Bb4
-                    playNote(523.25, now + 1.65, 0.2);  // C5
-                    playNote(466.16, now + 1.85, 0.2);  // Bb4
-                    playNote(523.25, now + 2.05, 1.5);  // C5 (Held)
-
-                    playNote(329.63, now + 0.45, 0.4, 'triangle'); // E4
-                    playNote(261.63, now + 0.85, 0.4, 'triangle'); // C4
-                    playNote(293.66, now + 1.25, 0.4, 'triangle'); // D4
-                    playNote(329.63, now + 2.05, 1.5, 'triangle'); // E4 (Held)
+                    playNote(523.25, now+0.0, 0.1); playNote(523.25, now+0.15, 0.1); playNote(523.25, now+0.3, 0.1);
+                    playNote(523.25, now+0.45, 0.4); playNote(415.30, now+0.85, 0.4); playNote(466.16, now+1.25, 0.4);
+                    playNote(523.25, now+1.65, 0.2); playNote(466.16, now+1.85, 0.2); playNote(523.25, now+2.05, 1.5);
+                    playNote(329.63, now+0.45, 0.4, 'triangle'); playNote(261.63, now+0.85, 0.4, 'triangle');
+                    playNote(293.66, now+1.25, 0.4, 'triangle'); playNote(329.63, now+2.05, 1.5, 'triangle');
                 }
             }
         };
-
         document.body.addEventListener('click', () => Sound.init(), { once: true });
 
-        // ================= 資料結構 =================
         const defaultStudents = [
             { name: "王小明", group: "第一組" }, { name: "李小華", group: "第一組" },
             { name: "張小美", group: "第二組" }, { name: "陳大文", group: "第二組" },
-            { name: "林小宏", group: "第三組" }, { name: "黃小芬", group: "第三組" },
-            { name: "陳小明", group: "第四組" }, { name: "李大華", group: "第四組" },
-            { name: "王大明", group: "第五組" }, { name: "蔡小虎", group: "第五組" },
-            { name: "陳大明", group: "第六組" }, { name: "張大華", group: "第六組" },
-            { name: "林大明", group: "第七組" }, { name: "黃大華", group: "第七組" }
+            { name: "林小宏", group: "第三組" }, { name: "黃小芬", group: "第三組" }
         ];
+        window.appData = { students: defaultStudents, records: {} };
+        let currentDate = "", viewMonth = new Date(), hasCelebrated = false;
+        let currentModalType = null; // 'write', 'correct', 'danger'
+        let currentEditingIndex = null; 
 
-        window.appData = {
-            students: defaultStudents,
-            records: {}
-        };
-
-        let currentDate = ""; 
-        let viewMonth = new Date(); 
-        let hasCelebrated = false;
-
-        // ================= 核心功能 =================
         function init() {
-            // 預設先讀本地，Firebase 載入後會覆蓋
             loadDataLocal();
-            
             const today = new Date();
-            const y = today.getFullYear();
-            const m = (today.getMonth() + 1).toString().padStart(2, '0');
-            const d = today.getDate().toString().padStart(2, '0');
-            const todayStr = `${y}-${m}-${d}`;
-
+            const todayStr = `${today.getFullYear()}-${(today.getMonth()+1).toString().padStart(2,'0')}-${today.getDate().toString().padStart(2,'0')}`;
             const lastView = localStorage.getItem('rpg_last_view');
             const lastDate = localStorage.getItem('rpg_last_date');
-
-            if (lastDate) {
-                currentDate = lastDate;
-            } else {
-                currentDate = todayStr;
-                getDateRecord(todayStr);
-            }
-
+            currentDate = lastDate ? lastDate : todayStr;
+            if(!lastDate) getDateRecord(todayStr);
             if (lastView && lastView !== 'calendar-view') {
                 openDate(currentDate, false);
                 switchView(lastView);
@@ -781,27 +548,22 @@
                     window.appData = JSON.parse(saved);
                     if (!window.appData.records) window.appData.records = {};
                     if (!window.appData.students) window.appData.students = defaultStudents;
-                } catch(e) {
-                    window.appData = { students: defaultStudents, records: {} };
-                }
+                } catch(e) { window.appData = { students: defaultStudents, records: {} }; }
             }
         }
 
-        // 預設儲存 (會被 Firebase 模組覆蓋)
         window.saveData = function() {
             try {
                 localStorage.setItem('rpgClassManager_v6', JSON.stringify(window.appData));
-            } catch (e) {
-                console.error("Local save failed", e);
-            }
+                localStorage.setItem('rpgClassManager_v5', JSON.stringify(window.appData));
+            } catch (e) {}
         };
 
         window.refreshUI = function() {
             const currentView = document.querySelector('.panel.show').id;
-            if (currentView === 'calendar-view') {
+            if (currentView === 'calendar-view') renderCalendar();
+            else {
                 renderCalendar();
-            } else {
-                renderCalendar(); 
                 if(currentView === 'quest-board') renderQuestBoard();
                 if(currentView === 'adventurer-roster') renderRoster();
                 if(currentView === 'settings') renderSettingsInputs();
@@ -810,21 +572,15 @@
 
         function getDateRecord(dateStr) {
             if (!dateStr) return { hwWrite: [], hwCorrect: [], status: {}, dangerList: [] };
-            
             if (!window.appData.records[dateStr]) {
-                window.appData.records[dateStr] = {
-                    hwWrite: [],
-                    hwCorrect: [],
-                    status: {},
-                    dangerList: []
-                };
-                
-                const yesterday = new Date(dateStr);
-                yesterday.setDate(yesterday.getDate() - 1);
+                window.appData.records[dateStr] = { hwWrite: [], hwCorrect: [], status: {}, dangerList: [] };
+                const yesterday = new Date(dateStr); yesterday.setDate(yesterday.getDate() - 1);
                 const yStr = yesterday.toISOString().split('T')[0];
-                
                 if (window.appData.records[yStr] && window.appData.records[yStr].dangerList.length > 0) {
-                    window.appData.records[dateStr].dangerList = [...window.appData.records[yStr].dangerList];
+                    // Deep copy tasks if they exist
+                    const prevList = window.appData.records[yStr].dangerList;
+                    // Simple clone, tasks are new instances
+                    window.appData.records[dateStr].dangerList = JSON.parse(JSON.stringify(prevList));
                 }
             }
             return window.appData.records[dateStr];
@@ -834,71 +590,48 @@
             const grid = document.getElementById('calendar-grid');
             if(!grid) return;
             grid.innerHTML = '';
+            document.getElementById('cal-month-title').textContent = `${viewMonth.getFullYear()} 年 ${viewMonth.getMonth() + 1} 月`;
             
-            const year = viewMonth.getFullYear();
-            const month = viewMonth.getMonth();
-            
-            document.getElementById('cal-month-title').textContent = `${year} 年 ${month + 1} 月`;
-
-            const days = ['日', '一', '二', '三', '四', '五', '六'];
+            const days = ['一', '二', '三', '四', '五', '六', '日'];
             days.forEach(d => {
-                const div = document.createElement('div');
-                div.className = 'day-name';
-                div.textContent = d;
-                grid.appendChild(div);
+                const div = document.createElement('div'); div.className = 'day-name'; div.textContent = d; grid.appendChild(div);
             });
-
-            const firstDay = new Date(year, month, 1);
-            const lastDay = new Date(year, month + 1, 0);
-            const totalDays = lastDay.getDate();
-            const startDay = firstDay.getDay();
+            
+            const firstDay = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), 1);
+            const lastDay = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0);
+            
+            let startDay = firstDay.getDay(); 
+            startDay = (startDay === 0) ? 6 : startDay - 1;
 
             for (let i = 0; i < startDay; i++) {
-                const div = document.createElement('div');
-                div.className = 'calendar-cell empty';
-                grid.appendChild(div);
+                const div = document.createElement('div'); div.className = 'calendar-cell empty'; grid.appendChild(div);
             }
-
             const todayStr = new Date().toISOString().split('T')[0];
-
-            for (let i = 1; i <= totalDays; i++) {
-                const mStr = (month + 1).toString().padStart(2, '0');
+            for (let i = 1; i <= lastDay.getDate(); i++) {
+                const mStr = (viewMonth.getMonth() + 1).toString().padStart(2, '0');
                 const dStr = i.toString().padStart(2, '0');
-                const dateStr = `${year}-${mStr}-${dStr}`;
-                
-                const cell = document.createElement('div');
-                cell.className = 'calendar-cell';
+                const dateStr = `${viewMonth.getFullYear()}-${mStr}-${dStr}`;
+                const cell = document.createElement('div'); cell.className = 'calendar-cell';
                 if (dateStr === todayStr) cell.classList.add('today');
-                
                 let html = `<div class="date-num">${i}</div>`;
-                
                 if (window.appData.records[dateStr]) {
                     const rec = window.appData.records[dateStr];
                     const hasTasks = rec.hwCorrect.length > 0;
-                    
                     if (hasTasks) {
                         let allDone = true;
                         window.appData.students.forEach((s, sIdx) => {
-                           rec.hwCorrect.forEach((_, hIdx) => {
-                               if (!rec.status[`${sIdx}_${hIdx}`]) allDone = false;
-                           }); 
+                           rec.hwCorrect.forEach((_, hIdx) => { if (!rec.status[`${sIdx}_${hIdx}`]) allDone = false; });
                         });
                         if (rec.dangerList.length > 0) allDone = false;
-
-                        if (allDone) {
-                            html += `<div class="cal-status cal-safe">★ 全員討伐 ★</div>`;
-                        } else {
+                        if (allDone) html += `<div class="cal-status cal-safe">★ 全員討伐 ★</div>`;
+                        else {
                             const remaining = rec.dangerList.length;
                             html += `<div class="cal-status cal-danger">⚠️ 未完成</div>`;
                             if(remaining > 0) html += `<div style="font-size:0.8rem; color:#c62828;">${remaining} 人負傷</div>`;
                         }
-                    } else if (rec.hwWrite.length > 0) {
-                         html += `<div class="cal-status" style="color:#555;">僅發布委託</div>`;
-                    }
+                    } else if (rec.hwWrite.length > 0) html += `<div class="cal-status" style="color:#555;">僅發布委託</div>`;
                 }
-
-                cell.innerHTML = html;
-                cell.onclick = () => { Sound.play('click'); openDate(dateStr); };
+                cell.innerHTML = html; cell.onclick = () => { Sound.play('click'); openDate(dateStr); };
                 grid.appendChild(cell);
             }
         }
@@ -907,167 +640,91 @@
             const rec = getDateRecord(currentDate);
             const writeList = document.getElementById('hw-write-list');
             writeList.innerHTML = rec.hwWrite.length ? '' : '<li>本日無新委託！</li>';
-            
             rec.hwWrite.forEach(hw => {
                 const li = document.createElement('li');
-                if(hw.startsWith('*')) {
-                    li.textContent = hw.substring(1); // 去掉星號
-                    li.className = 'reminder-blue';
-                } else {
-                    li.textContent = hw;
-                }
+                if(hw.startsWith('*')) { li.textContent = hw.substring(1); li.className = 'reminder-blue'; }
+                else li.textContent = hw;
                 writeList.appendChild(li);
             });
-
             const correctList = document.getElementById('hw-correct-list');
             correctList.innerHTML = rec.hwCorrect.length ? '' : '<li>目前非常安全</li>';
             rec.hwCorrect.forEach(hw => {
-                const li = document.createElement('li');
-                li.textContent = hw;
-                correctList.appendChild(li);
+                const li = document.createElement('li'); li.textContent = hw; correctList.appendChild(li);
             });
+            
+            document.getElementById('quest-date-1').textContent = `(${currentDate})`;
+            document.getElementById('quest-date-2').textContent = `(${currentDate})`;
         }
 
         function renderRoster() {
             const rec = getDateRecord(currentDate);
             const container = document.getElementById('roster-container');
             container.innerHTML = '';
-
             if (window.appData.students.length === 0) {
-                container.innerHTML = '<div style="padding:20px; font-size:1.2rem; color:#8d6e63;">公會名冊空白，請至「設定」招募冒險者。</div>';
-                return;
+                container.innerHTML = '<div style="padding:20px; font-size:1.2rem;">公會名冊空白，請至「設定」招募冒險者。</div>'; return;
             }
-
             const groups = {};
             window.appData.students.forEach((s, index) => {
                 const gName = s.group || '未分組';
                 if (!groups[gName]) groups[gName] = [];
                 groups[gName].push({ ...s, originalIndex: index });
             });
-
-            const groupNames = Object.keys(groups).sort((a, b) => {
-                if(a === '未分組') return 1;
-                if(b === '未分組') return -1;
-                return a.localeCompare(b, 'zh-TW', { numeric: true }); 
-            });
-
-            groupNames.forEach(gName => {
+            Object.keys(groups).sort((a, b) => (a==='未分組'?1:b==='未分組'?-1:a.localeCompare(b, 'zh-TW', {numeric:true}))).forEach(gName => {
                 const groupStudents = groups[gName];
-                const card = document.createElement('div');
-                card.className = 'group-card';
-                
+                const card = document.createElement('div'); card.className = 'group-card';
                 card.ondragover = (e) => { e.preventDefault(); card.classList.add('drag-over'); };
                 card.ondragleave = (e) => { card.classList.remove('drag-over'); };
-                card.ondrop = (e) => {
-                    e.preventDefault(); card.classList.remove('drag-over');
-                    const studentIndex = e.dataTransfer.getData('text/plain');
-                    if (studentIndex !== "") moveStudentToGroup(studentIndex, gName);
-                };
-
-                let isGroupAllClear = true;
+                card.ondrop = (e) => { e.preventDefault(); card.classList.remove('drag-over'); moveStudentToGroup(e.dataTransfer.getData('text/plain'), gName); };
+                
+                let isGroupAllClear = rec.hwCorrect.length > 0;
+                groupStudents.forEach(s => {
+                    rec.hwCorrect.forEach((_, hIdx) => { if (!rec.status[`${s.originalIndex}_${hIdx}`]) isGroupAllClear = false; });
+                });
                 if(rec.hwCorrect.length === 0) isGroupAllClear = false;
 
+                card.innerHTML = `<div class="group-header"><span>${gName}</span><span class="group-bonus ${isGroupAllClear?'active':''}">小隊討伐魔物完畢</span></div>`;
+                const listDiv = document.createElement('div'); listDiv.className = 'student-list';
                 groupStudents.forEach(s => {
-                    rec.hwCorrect.forEach((_, hwIndex) => {
-                        const key = `${s.originalIndex}_${hwIndex}`;
-                        if (!rec.status[key]) isGroupAllClear = false;
+                    const row = document.createElement('div'); row.className = 'student-row';
+                    row.draggable = true; row.ondragstart = (e) => e.dataTransfer.setData('text/plain', s.originalIndex);
+                    let btns = '';
+                    if(rec.hwCorrect.length === 0) btns = '<span style="color:#aaa; font-size:0.8rem;">無目標</span>';
+                    else rec.hwCorrect.forEach((hw, hIdx) => {
+                        const key = `${s.originalIndex}_${hIdx}`;
+                        const cls = rec.status[key] ? 'check-btn completed' : 'check-btn';
+                        btns += `<div class="${cls}" onclick="toggleStatus(${s.originalIndex},${hIdx})" title="${hw}"><span>${hw}</span></div>`;
                     });
-                });
-
-                const header = document.createElement('div');
-                header.className = 'group-header';
-                header.innerHTML = `<span>${gName}</span><span class="group-bonus ${isGroupAllClear ? 'active' : ''}">小隊討伐魔物完畢</span>`;
-                card.appendChild(header);
-
-                const listDiv = document.createElement('div');
-                listDiv.className = 'student-list';
-
-                groupStudents.forEach(s => {
-                    const row = document.createElement('div');
-                    row.className = 'student-row';
-                    row.draggable = true;
-                    row.ondragstart = (e) => {
-                        e.dataTransfer.setData('text/plain', s.originalIndex);
-                        e.dataTransfer.effectAllowed = 'move';
-                    };
-
-                    const nameSpan = document.createElement('div');
-                    nameSpan.className = 's-name';
-                    nameSpan.textContent = s.name;
-                    row.appendChild(nameSpan);
-
-                    const taskContainer = document.createElement('div');
-                    taskContainer.className = 'task-container';
-
-                    if(rec.hwCorrect.length === 0) {
-                        taskContainer.innerHTML = '<span style="color:#aaa; font-size:0.8rem; font-style:italic;">無目標</span>';
-                    }
-
-                    rec.hwCorrect.forEach((hw, hwIndex) => {
-                        const btn = document.createElement('div');
-                        btn.className = 'check-btn';
-                        btn.title = hw;
-                        const key = `${s.originalIndex}_${hwIndex}`;
-                        if (rec.status[key]) btn.classList.add('completed');
-
-                        btn.innerHTML = `<span>${hw}</span>`;
-                        btn.onclick = () => toggleStatus(s.originalIndex, hwIndex);
-                        taskContainer.appendChild(btn);
-                    });
-
-                    row.appendChild(taskContainer);
+                    row.innerHTML = `<div class="s-name">${s.name}</div><div class="task-container">${btns}</div>`;
                     listDiv.appendChild(row);
                 });
-
-                card.appendChild(listDiv);
-                container.appendChild(card);
+                card.appendChild(listDiv); container.appendChild(card);
             });
             
-            // Danger Zone
-            const dangerCard = document.createElement('div');
-            dangerCard.className = 'group-card danger-zone-card';
+            const dangerCard = document.createElement('div'); dangerCard.className = 'group-card danger-zone-card';
             dangerCard.innerHTML = `<div class="danger-zone-header">⚠️ 負傷命危的冒險者名單</div>`;
-            
-            const dangerListDiv = document.createElement('div');
-            dangerListDiv.className = 'danger-list';
-            rec.dangerList.forEach((name, idx) => {
-                const row = document.createElement('div');
-                row.className = 'danger-item';
-                row.innerHTML = `<span class="danger-item-name" title="${name}">${name}</span>`;
-                const removeBtn = document.createElement('button');
-                removeBtn.className = 'danger-remove-btn';
-                removeBtn.textContent = '✕';
-                removeBtn.onclick = () => removeFromDanger(idx);
-                row.appendChild(removeBtn);
-                dangerListDiv.appendChild(row);
+            const dangerListDiv = document.createElement('div'); dangerListDiv.className = 'danger-list';
+            if(rec.dangerList.length === 0) dangerListDiv.innerHTML = '<div style="text-align:center; color:#999; padding:10px;">目前無人負傷</div>';
+            else rec.dangerList.forEach((item, idx) => {
+                const name = typeof item === 'object' ? item.name : item;
+                // Change: Remove note display here
+                dangerListDiv.innerHTML += `<div class="danger-item" onclick="openDangerPotionModal(${idx})">
+                    <span class="danger-item-name" title="${name}">${name}</span>
+                    <button class="danger-remove-btn" onclick="event.stopPropagation(); removeFromDanger(${idx})">✕</button>
+                </div>`;
             });
-            if(rec.dangerList.length === 0) {
-                dangerListDiv.innerHTML = '<div style="text-align:center; color:#999; padding:10px;">目前無人負傷</div>';
-            }
             dangerCard.appendChild(dangerListDiv);
-            
-            const inputArea = document.createElement('div');
-            inputArea.className = 'danger-input-area';
-            inputArea.innerHTML = `
-                <input type="text" id="danger-input" class="danger-input" placeholder="輸入姓名..." onkeypress="handleDangerKeypress(event)">
-                <button class="danger-add-btn" onclick="addToDanger()">＋</button>
-            `;
-            dangerCard.appendChild(inputArea);
+            dangerCard.innerHTML += `<div class="danger-input-area"><input type="text" id="danger-input" class="danger-input" placeholder="輸入姓名..." onkeypress="handleDangerKeypress(event)"><button class="danger-add-btn" onclick="addToDanger()">＋</button></div>`;
             container.appendChild(dangerCard);
         }
 
         function renderSettingsInputs() {
             const rec = getDateRecord(currentDate);
-            const sText = window.appData.students.map(s => `${s.name}, ${s.group}`).join('\n');
-            document.getElementById('input-students').value = sText;
+            document.getElementById('input-students').value = window.appData.students.map(s => `${s.name}, ${s.group}`).join('\n');
             document.getElementById('input-hw-write').value = rec.hwWrite.join('\n');
             document.getElementById('input-hw-correct').value = rec.hwCorrect.join('\n');
         }
 
-        function changeMonth(delta) {
-            viewMonth.setMonth(viewMonth.getMonth() + delta);
-            renderCalendar();
-        }
+        function changeMonth(d) { viewMonth.setMonth(viewMonth.getMonth() + d); renderCalendar(); }
         function goToToday() { viewMonth = new Date(); renderCalendar(); }
         function showCalendar() {
             document.querySelectorAll('.panel').forEach(el => el.classList.remove('show'));
@@ -1078,10 +735,9 @@
             localStorage.setItem('rpg_last_view', 'calendar-view');
         }
         function openDate(dateStr, autoSwitch = true) {
-            currentDate = dateStr;
-            getDateRecord(currentDate);
+            currentDate = dateStr; getDateRecord(currentDate);
             localStorage.setItem('rpg_last_date', currentDate);
-            hasCelebrated = false; 
+            hasCelebrated = false;
             document.querySelectorAll('.panel').forEach(el => el.classList.remove('show'));
             document.getElementById('day-nav-buttons').style.display = 'flex';
             document.getElementById('current-date-display').textContent = currentDate;
@@ -1090,100 +746,232 @@
             if(document.getElementById('setting-date-label-2')) document.getElementById('setting-date-label-2').textContent = currentDate;
             if (autoSwitch) switchView('quest-board');
         }
-        function switchView(viewId) {
-            if(viewId === 'calendar-view') return showCalendar();
-            localStorage.setItem('rpg_last_view', viewId);
+        function switchView(id) {
+            if(id === 'calendar-view') return showCalendar();
+            localStorage.setItem('rpg_last_view', id);
             document.querySelectorAll('.panel').forEach(el => el.classList.remove('show'));
-            document.getElementById('calendar-view').classList.remove('show');
-            document.querySelectorAll('#day-nav-buttons .rpg-btn').forEach(el => el.classList.remove('active'));
-            document.getElementById(viewId).classList.add('show');
-            const btnMap = { 'quest-board': 1, 'adventurer-roster': 2, 'settings': 3 };
-            const btn = document.querySelectorAll('#day-nav-buttons .rpg-btn')[btnMap[viewId]];
-            if(btn) btn.classList.add('active');
-            if(viewId === 'quest-board') renderQuestBoard();
-            if(viewId === 'adventurer-roster') renderRoster();
-            if(viewId === 'settings') renderSettingsInputs();
+            document.getElementById(id).classList.add('show');
+            document.querySelectorAll('#day-nav-buttons .rpg-btn').forEach(b => b.classList.remove('active'));
+            const idx = {'quest-board':0, 'adventurer-roster':1, 'settings':2}[id];
+            if(idx!==undefined) document.querySelectorAll('#day-nav-buttons .rpg-btn')[idx].classList.add('active');
+            if(id === 'quest-board') renderQuestBoard();
+            if(id === 'adventurer-roster') renderRoster();
+            if(id === 'settings') renderSettingsInputs();
         }
 
         function checkAllClear() {
             if(hasCelebrated) return;
             const rec = getDateRecord(currentDate);
-            if (rec.hwCorrect.length === 0) return; 
-
+            if (rec.hwCorrect.length === 0) return;
             let allDone = true;
-            for (let sIdx = 0; sIdx < window.appData.students.length; sIdx++) {
-                for (let hIdx = 0; hIdx < rec.hwCorrect.length; hIdx++) {
-                    if (!rec.status[`${sIdx}_${hIdx}`]) {
-                        allDone = false;
-                        break;
-                    }
+            for(let i=0; i<window.appData.students.length; i++) {
+                for(let j=0; j<rec.hwCorrect.length; j++) {
+                    if(!rec.status[`${i}_${j}`]) { allDone = false; break; }
                 }
-                if (!allDone) break;
             }
-
             if (rec.dangerList.length > 0) allDone = false;
-
             if (allDone) {
-                showCelebration();
+                document.getElementById('celebration-overlay').classList.add('active');
+                Sound.play('victory');
                 hasCelebrated = true;
             }
         }
+        function closeCelebration() { document.getElementById('celebration-overlay').classList.remove('active'); }
 
-        function showCelebration() {
-            const overlay = document.getElementById('celebration-overlay');
-            overlay.classList.add('active');
-            Sound.play('victory');
-        }
-
-        function closeCelebration() {
-            const overlay = document.getElementById('celebration-overlay');
-            overlay.classList.remove('active');
-        }
-
-        function toggleStatus(sIdx, hIdx) {
+        function toggleStatus(s, h) {
             const rec = getDateRecord(currentDate);
-            const key = `${sIdx}_${hIdx}`;
-            rec.status[key] = !rec.status[key];
-            if (rec.status[key]) Sound.play('success'); else Sound.play('cancel');
-            window.saveData();
-            renderRoster();
-            checkAllClear(); 
+            const k = `${s}_${h}`;
+            rec.status[k] = !rec.status[k];
+            Sound.play(rec.status[k] ? 'success' : 'cancel');
+            window.saveData(); renderRoster(); checkAllClear();
         }
-
-        function moveStudentToGroup(studentIndex, newGroupName) {
-            const student = window.appData.students[studentIndex];
-            if (student && student.group !== newGroupName) {
-                student.group = newGroupName;
-                window.saveData();
-                renderRoster();
-                showToast(`${student.name} 已移動到 ${newGroupName}`);
-            }
+        function moveStudentToGroup(sIdx, gName) {
+            const s = window.appData.students[sIdx];
+            if (s && s.group !== gName) { s.group = gName; window.saveData(); renderRoster(); showToast(`${s.name} 已移動到 ${gName}`); }
         }
-
         function addToDanger() {
-            const input = document.getElementById('danger-input');
-            const val = input.value.trim();
+            const val = document.getElementById('danger-input').value.trim();
             if(val) {
-                Sound.play('click');
-                const rec = getDateRecord(currentDate);
-                rec.dangerList.push(val);
-                window.saveData();
-                renderRoster();
-                setTimeout(() => document.getElementById('danger-input').focus(), 50);
+                Sound.play('click'); 
+                // Store as object with empty tasks array
+                getDateRecord(currentDate).dangerList.push({ name: val, tasks: [] });
+                window.saveData(); renderRoster(); document.getElementById('danger-input').focus();
             }
         }
-
         function removeFromDanger(idx) {
+            Sound.play('click'); getDateRecord(currentDate).dangerList.splice(idx, 1);
+            window.saveData(); renderRoster(); showToast("已將冒險者治癒！"); checkAllClear();
+        }
+        function handleDangerKeypress(e) { if(e.key === 'Enter') addToDanger(); }
+
+        // Modal Logic
+        function openQuickEdit(type) {
+            currentModalType = type;
+            const modal = document.getElementById('common-modal');
+            const title = document.getElementById('modal-title');
+            const content = document.getElementById('modal-content');
+            const footer = document.getElementById('modal-footer');
+            const rec = getDateRecord(currentDate);
+            
+            footer.innerHTML = `
+                <button class="rpg-btn danger-btn" onclick="closeModal()">取消</button>
+                <button class="rpg-btn" onclick="saveModal()">確定</button>
+            `;
+
+            if (type === 'write') {
+                title.textContent = `編輯新委託 (${currentDate})`;
+                content.innerHTML = `<textarea id="quick-edit-area" rows="8">${rec.hwWrite.join('\n')}</textarea><p style="font-size:0.8rem;color:#666;margin-top:5px;">*前方加星號為提醒項目</p>`;
+            } else if (type === 'correct') {
+                title.textContent = `編輯魔物討伐 (${currentDate})`;
+                content.innerHTML = `<textarea id="quick-edit-area" rows="8">${rec.hwCorrect.join('\n')}</textarea>`;
+            }
+            modal.classList.add('active');
+        }
+
+        // Potion Collection Modal
+        function openDangerPotionModal(idx) {
+            currentModalType = 'potion';
+            currentEditingIndex = idx;
+            const rec = getDateRecord(currentDate);
+            // Handle legacy string data or new object data
+            let item = rec.dangerList[idx];
+            if (typeof item === 'string') {
+                item = { name: item, tasks: [] };
+                rec.dangerList[idx] = item; // convert on fly
+            }
+            // If no tasks property (legacy object), add it
+            if(!item.tasks) item.tasks = [];
+
+            const modal = document.getElementById('common-modal');
+            const title = document.getElementById('modal-title');
+            const content = document.getElementById('modal-content');
+            const footer = document.getElementById('modal-footer');
+
+            title.textContent = `蒐集魔藥：${item.name}`;
+            
+            // Footer for this specific view
+            footer.innerHTML = `
+                <button class="rpg-btn" onclick="closeModal()">關閉</button>
+                <button class="rpg-btn" style="background-color:#5d4037" onclick="editPotionList(${idx})">📝 編輯欠繳清單</button>
+            `;
+            
+            renderPotionList(idx);
+            modal.classList.add('active');
+        }
+
+        function renderPotionList(idx) {
+            const rec = getDateRecord(currentDate);
+            const item = rec.dangerList[idx];
+            const content = document.getElementById('modal-content');
+            
+            let html = `<div class="potion-list">`;
+            let allDone = item.tasks.length > 0;
+            
+            if(item.tasks.length === 0) {
+                html += `<div class="potion-empty-state">目前沒有欠繳紀錄<br>請點擊「編輯欠繳清單」來新增</div>`;
+                allDone = false;
+            } else {
+                item.tasks.forEach((task, tIdx) => {
+                    // task structure: { desc: "Math", done: false }
+                    // Handle legacy string tasks if any
+                    if(typeof task === 'string') { task = { desc: task, done: false }; item.tasks[tIdx] = task; }
+                    
+                    const icon = task.done ? '🧪' : '⚗️';
+                    const cls = task.done ? 'potion-item collected' : 'potion-item';
+                    if(!task.done) allDone = false;
+                    
+                    html += `
+                        <div class="${cls}" onclick="togglePotion(${idx}, ${tIdx})">
+                            <div class="potion-icon">${icon}</div>
+                            <div class="potion-name">${task.desc}</div>
+                        </div>
+                    `;
+                });
+            }
+            html += `</div>`;
+            
+            // Heal button
+            if(allDone) {
+                html += `<button class="potion-heal-btn show" onclick="healStudent(${idx})">✨ 施放治癒魔法 (從名單移除)</button>`;
+            }
+            
+            content.innerHTML = html;
+        }
+
+        function togglePotion(sIdx, tIdx) {
+            const rec = getDateRecord(currentDate);
+            const task = rec.dangerList[sIdx].tasks[tIdx];
+            task.done = !task.done;
+            if(task.done) Sound.play('success');
+            window.saveData();
+            renderPotionList(sIdx);
+        }
+
+        function healStudent(idx) {
+            const rec = getDateRecord(currentDate);
+            const name = rec.dangerList[idx].name;
+            removeFromDanger(idx); // reuse existing logic
+            closeModal();
+            showToast(`${name} 已成功治癒！`);
+        }
+
+        function editPotionList(idx) {
+            const rec = getDateRecord(currentDate);
+            const item = rec.dangerList[idx];
+            const taskText = item.tasks.map(t => typeof t === 'string' ? t : t.desc).join('\n');
+            
+            const modal = document.getElementById('common-modal');
+            document.getElementById('modal-title').textContent = `編輯欠繳項目：${item.name}`;
+            document.getElementById('modal-content').innerHTML = `<textarea id="quick-edit-area" rows="8" placeholder="一行一項作業">${taskText}</textarea>`;
+            document.getElementById('modal-footer').innerHTML = `
+                <button class="rpg-btn danger-btn" onclick="openDangerPotionModal(${idx})">取消</button>
+                <button class="rpg-btn" onclick="savePotionList(${idx})">儲存</button>
+            `;
+        }
+
+        function savePotionList(idx) {
+            const rec = getDateRecord(currentDate);
+            const item = rec.dangerList[idx];
+            const text = document.getElementById('quick-edit-area').value;
+            const lines = text.split('\n').map(t=>t.trim()).filter(t=>t);
+            
+            // Rebuild tasks array, trying to preserve status if possible (simple mapping)
+            // For simplicity, just rebuild. Completed status might be lost if renamed.
+            // To be user friendly, let's just map new strings to objects.
+            item.tasks = lines.map(desc => ({ desc: desc, done: false }));
+            
+            window.saveData();
+            openDangerPotionModal(idx); // Go back to interact view
+        }
+
+        function closeModal() {
+            document.getElementById('common-modal').classList.remove('active');
+            currentModalType = null;
+        }
+
+        function saveModal() {
             Sound.play('click');
             const rec = getDateRecord(currentDate);
-            rec.dangerList.splice(idx, 1);
-            window.saveData();
-            renderRoster();
-            showToast("已將冒險者治癒！");
-            checkAllClear(); 
+            
+            if (currentModalType === 'write') {
+                const val = document.getElementById('quick-edit-area').value;
+                rec.hwWrite = val.split('\n').map(t=>t.trim()).filter(t=>t);
+                window.saveData();
+                renderQuestBoard(); 
+                const setInput = document.getElementById('input-hw-write');
+                if(setInput) setInput.value = rec.hwWrite.join('\n');
+            } else if (currentModalType === 'correct') {
+                const val = document.getElementById('quick-edit-area').value;
+                rec.hwCorrect = val.split('\n').map(t=>t.trim()).filter(t=>t);
+                window.saveData();
+                renderQuestBoard();
+                const setInput = document.getElementById('input-hw-correct');
+                if(setInput) setInput.value = rec.hwCorrect.join('\n');
+            }
+            
+            closeModal();
+            showToast("更新成功", "success");
         }
-
-        function handleDangerKeypress(e) { if(e.key === 'Enter') addToDanger(); }
 
         function saveSettings() {
             const rec = getDateRecord(currentDate);
@@ -1209,54 +997,32 @@
         }
 
         function clearAllData() {
-            if(confirm('警告：這將會焚毀所有公會卷軸！確定要執行禁忌魔法嗎？')) {
+            if(confirm('警告：重置系統？')) {
                 if(window.StorageSystem) window.StorageSystem.clear();
-                else {
-                     localStorage.removeItem('rpgClassManager_v6');
-                }
+                else { localStorage.removeItem('rpgClassManager_v6'); localStorage.removeItem('rpgClassManager_v5'); }
                 location.reload();
             }
         }
-
         function exportData() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.appData));
-            const downloadAnchorNode = document.createElement('a');
-            const dateStr = new Date().toISOString().split('T')[0];
-            downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", `冒險者公會備份_${dateStr}.json`);
-            document.body.appendChild(downloadAnchorNode);
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
-            showToast("備份檔案已下載！");
+            const str = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.appData));
+            const a = document.createElement('a');
+            a.href = str; a.download = `冒險者公會備份_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a); a.click(); a.remove();
         }
-
         function importData(input) {
-            const file = input.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
+            const f = input.files[0]; if(!f) return;
+            const r = new FileReader();
+            r.onload = (e) => {
                 try {
-                    const contents = e.target.result;
-                    const parsedData = JSON.parse(contents);
-                    if (parsedData.students && parsedData.records) {
-                        window.appData = parsedData;
-                        window.saveData();
-                        localStorage.removeItem('rpg_last_view');
-                        localStorage.removeItem('rpg_last_date');
-                        const today = new Date();
-                        const y = today.getFullYear();
-                        const m = (today.getMonth() + 1).toString().padStart(2, '0');
-                        const d = today.getDate().toString().padStart(2, '0');
-                        currentDate = `${y}-${m}-${d}`;
-                        getDateRecord(currentDate);
-                        renderCalendar();
-                        showCalendar();
-                        showToast("資料匯入成功！", "success");
+                    const d = JSON.parse(e.target.result);
+                    if(d.students && d.records) {
+                        window.appData = d; window.saveData();
+                        localStorage.removeItem('rpg_last_view'); localStorage.removeItem('rpg_last_date');
+                        init(); showToast("資料匯入成功！", "success");
                     }
-                } catch (err) { alert("檔案讀取失敗"); }
+                } catch(err){ alert("格式錯誤"); }
             };
-            reader.readAsText(file);
-            input.value = '';
+            r.readAsText(f); input.value = '';
         }
 
         function showToast(message, type) {
@@ -1268,130 +1034,64 @@
             setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 2500);
         }
 
-        init();
+        // Cloud Module
+        const StorageSystem = {
+            mode: 'local', db: null, auth: null, docRef: null,
+            init: async function() {
+                if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                    try {
+                        const { initializeApp } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js');
+                        const { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
+                        const { getFirestore, doc, setDoc, onSnapshot } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
 
-    </script>
+                        document.getElementById('storage-indicator').textContent = "雲端同步中...";
+                        document.getElementById('storage-indicator').className = "mode-cloud";
+                        this.mode = 'cloud';
 
-    <script type="module">
-        // 匯入 Firebase SDK
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+                        const app = initializeApp(JSON.parse(__firebase_config));
+                        this.auth = getAuth(app);
+                        this.db = getFirestore(app);
+                        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-        // 1. 設定：這裡已經填入您的 Firebase 鑰匙
-        const firebaseConfig = {
-            apiKey: "AIzaSyDJFzG3RrCkJBx5B23lBVcoOHmaqZ2dAYA",
-            authDomain: "forgemini-7349a.firebaseapp.com",
-            projectId: "forgemini-7349a",
-            storageBucket: "forgemini-7349a.firebasestorage.app",
-            messagingSenderId: "865250968546",
-            appId: "1:865250968546:web:fc3ded71179b709d422fbb"
-        };
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(this.auth, __initial_auth_token);
+                        else await signInAnonymously(this.auth);
 
-        // 2. 初始化 Firebase
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const provider = new GoogleAuthProvider();
-
-        let currentUser = null;
-        let unsubscribeDoc = null;
-
-        // 3. 處理登入/登出按鈕邏輯
-        window.handleAuth = async function() {
-            if (currentUser) {
-                // 如果已登入 -> 登出
-                try {
-                    await signOut(auth);
-                    // 登出後重整頁面，恢復本地模式
-                    location.reload();
-                } catch (error) {
-                    console.error("登出失敗", error);
-                    alert("登出失敗：" + error.message);
+                        onAuthStateChanged(this.auth, (user) => {
+                            if (user) {
+                                this.docRef = doc(this.db, 'artifacts', appId, 'users', user.uid, 'data', 'classManager');
+                                onSnapshot(this.docRef, (s) => {
+                                    if (s.exists()) {
+                                        window.appData = s.data();
+                                        window.refreshUI();
+                                        document.getElementById('storage-indicator').textContent = "☁️ 雲端已同步";
+                                    } else this.save(window.appData);
+                                });
+                                window.saveData = () => this.save(window.appData);
+                            }
+                        });
+                    } catch (e) { this.fallback(); }
                 }
-            } else {
-                // 如果沒登入 -> 跳出 Google 登入視窗
-                try {
-                    await signInWithPopup(auth, provider);
-                } catch (error) {
-                    console.error("登入失敗", error);
-                    alert("登入失敗：" + error.message);
+            },
+            fallback: function() {
+                document.getElementById('storage-indicator').textContent = "🏠 本地模式";
+                document.getElementById('storage-indicator').className = "mode-local";
+            },
+            save: function(data) {
+                if (this.docRef) {
+                    document.getElementById('storage-indicator').textContent = "同步中...";
+                    import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js').then(({ setDoc }) => {
+                        setDoc(this.docRef, data).then(() => {
+                            document.getElementById('storage-indicator').textContent = "☁️ 雲端已同步";
+                        }).catch(() => document.getElementById('storage-indicator').textContent = "⚠️ 同步失敗");
+                    });
                 }
+            },
+            clear: function() {
+                if(this.docRef) import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js').then(({ setDoc }) => setDoc(this.docRef, { students: [], records: {} }));
             }
         };
-
-        // 4. 監聽登入狀態改變
-        onAuthStateChanged(auth, (user) => {
-            const btn = document.getElementById('auth-btn');
-            
-            if (user) {
-                // === 已登入 ===
-                currentUser = user;
-                console.log("已登入:", user.displayName);
-                
-                // 更新按鈕外觀
-                btn.textContent = `👤 ${user.displayName}`;
-                btn.className = "mode-cloud";
-                btn.title = "點擊以登出";
-                
-                // 開始監聽雲端資料庫
-                startSync(user.uid);
-                
-            } else {
-                // === 未登入 ===
-                currentUser = null;
-                console.log("未登入，使用本地模式");
-                btn.textContent = "☁️ 登入雲端";
-                btn.className = "mode-local";
-                if(unsubscribeDoc) unsubscribeDoc(); // 停止監聽
-            }
-        });
-
-        // 5. 資料同步核心
-        function startSync(userId) {
-            // 資料路徑：users/{userId}/gameData/main
-            const docRef = doc(db, "users", userId, "gameData", "main");
-            
-            // 監聽雲端資料變化 (下載)
-            unsubscribeDoc = onSnapshot(docRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    console.log("收到雲端資料更新");
-                    const cloudData = docSnap.data();
-                    
-                    // 檢查格式是否正確
-                    if(cloudData.students && cloudData.records) {
-                        window.appData = cloudData;
-                        window.refreshUI(); // 刷新畫面
-                        showToast("☁️ 資料已同步", "success");
-                    }
-                } else {
-                    console.log("雲端尚無資料，將上傳本地資料...");
-                    // 如果雲端是空的，就把現在本地的資料傳上去
-                    saveToCloud();
-                }
-            });
-
-            // 覆寫全域儲存函式 (上傳)
-            window.saveData = function() {
-                // 同時存本地 (當備份)
-                localStorage.setItem('rpgClassManager_v6', JSON.stringify(window.appData));
-                
-                // 上傳雲端
-                saveToCloud();
-            };
-        }
-
-        async function saveToCloud() {
-            if (!currentUser) return;
-            const docRef = doc(db, "users", currentUser.uid, "gameData", "main");
-            try {
-                await setDoc(docRef, window.appData, { merge: true });
-                // 這裡不需顯示 Toast，因為 onSnapshot 會觸發更新提示
-            } catch (e) {
-                console.error("上傳失敗", e);
-                showToast("⚠️ 上傳失敗，請檢查網路");
-            }
-        }
+        window.StorageSystem = StorageSystem;
+        StorageSystem.init();
     </script>
 </body>
 </html>
