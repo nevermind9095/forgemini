@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>冒險者公會：冒險日誌 v7.4 (GitHub 雲端連線版)</title>
+    <title>冒險者公會：冒險日誌 v7.5 (小組一鍵完成版)</title>
     <style>
         /* * =========================================
          * 全域設定
@@ -256,7 +256,19 @@
          */
         .roster-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; padding-bottom: 5px; overflow-y: auto; flex: 1; align-content: start; }
         .group-card { background: #fff8e1; border: 2px solid #8d6e63; border-radius: 5px; box-shadow: 2px 2px 0 rgba(0,0,0,0.1); display: flex; flex-direction: column; height: fit-content; }
-        .group-header { background: #5d4037; color: #fff; padding: 4px 8px; font-size: 1rem; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3e2723; height: 28px; }
+        
+        /* 小組標題優化 - 支援點擊 */
+        .group-header { 
+            background: #5d4037; color: #fff; padding: 4px 8px; 
+            font-size: 1rem; font-weight: bold; 
+            display: flex; justify-content: space-between; align-items: center; 
+            border-bottom: 2px solid #3e2723; height: 28px; 
+            cursor: pointer; /* 變為手指 */
+            transition: filter 0.2s;
+        }
+        .group-header:hover { filter: brightness(1.15); }
+        .group-header::after { content: '⚡'; font-size: 0.8rem; margin-left: 5px; opacity: 0.5; }
+
         .group-bonus { background: var(--gold-accent); color: #3e2723; padding: 1px 6px; border-radius: 10px; font-size: 0.8rem; font-weight: 900; border: 1px solid #fff; box-shadow: 0 0 5px var(--gold-accent); display: none; animation: shine 1.5s infinite alternate; }
         .group-bonus.active { display: block; }
         .student-list { padding: 3px 5px; flex: 1; display: flex; flex-direction: column; min-height: 50px; }
@@ -693,7 +705,9 @@
                 });
                 if(rec.hwCorrect.length === 0) isGroupAllClear = false;
 
-                card.innerHTML = `<div class="group-header"><span>${gName}</span><span class="group-bonus ${isGroupAllClear?'active':''}">小隊討伐魔物完畢</span></div>`;
+                // 新增 toggleGroupStatus 事件
+                card.innerHTML = `<div class="group-header" onclick="toggleGroupStatus('${gName}')" title="點擊切換全組狀態"><span>${gName}</span><span class="group-bonus ${isGroupAllClear?'active':''}">小隊討伐魔物完畢</span></div>`;
+                
                 const listDiv = document.createElement('div'); listDiv.className = 'student-list';
                 groupStudents.forEach(s => {
                     const row = document.createElement('div'); row.className = 'student-row';
@@ -725,6 +739,13 @@
             dangerCard.appendChild(dangerListDiv);
             dangerCard.innerHTML += `<div class="danger-input-area"><input type="text" id="danger-input" class="danger-input" placeholder="輸入姓名..." onkeypress="handleDangerKeypress(event)"><button class="danger-add-btn" onclick="addToDanger()">＋</button></div>`;
             container.appendChild(dangerCard);
+        }
+
+        function renderSettingsInputs() {
+            const rec = getDateRecord(currentDate);
+            document.getElementById('input-students').value = window.appData.students.map(s => `${s.name}, ${s.group}`).join('\n');
+            document.getElementById('input-hw-write').value = rec.hwWrite.join('\n');
+            document.getElementById('input-hw-correct').value = rec.hwCorrect.join('\n');
         }
 
         function changeMonth(d) { viewMonth.setMonth(viewMonth.getMonth() + d); renderCalendar(); }
@@ -788,6 +809,41 @@
             Sound.play(rec.status[k] ? 'success' : 'cancel');
             window.saveData(); renderRoster(); checkAllClear();
         }
+
+        // NEW: Toggle entire group
+        function toggleGroupStatus(groupName) {
+            const rec = getDateRecord(currentDate);
+            if (rec.hwCorrect.length === 0) return;
+
+            const targetStudentIndices = [];
+            window.appData.students.forEach((s, index) => {
+                if (s.group === groupName) targetStudentIndices.push(index);
+            });
+
+            if (targetStudentIndices.length === 0) return;
+
+            let anyIncomplete = false;
+            targetStudentIndices.forEach(sIdx => {
+                rec.hwCorrect.forEach((_, hIdx) => {
+                    const key = `${sIdx}_${hIdx}`;
+                    if (!rec.status[key]) anyIncomplete = true;
+                });
+            });
+
+            const newState = anyIncomplete; // If any unchecked, check all. Else uncheck all.
+
+            targetStudentIndices.forEach(sIdx => {
+                rec.hwCorrect.forEach((_, hIdx) => {
+                    rec.status[`${sIdx}_${hIdx}`] = newState;
+                });
+            });
+
+            Sound.play(newState ? 'success' : 'cancel');
+            window.saveData();
+            renderRoster();
+            checkAllClear();
+        }
+
         function moveStudentToGroup(sIdx, gName) {
             const s = window.appData.students[sIdx];
             if (s && s.group !== gName) { s.group = gName; window.saveData(); renderRoster(); showToast(`${s.name} 已移動到 ${gName}`); }
@@ -967,48 +1023,13 @@
         }
 
         function clearAllData() {
-            if(confirm('警告：重置系統？')) {
-                localStorage.removeItem('rpgClassManager_v6');
-                localStorage.removeItem('rpgClassManager_v5');
-                localStorage.removeItem('rpg_last_view');
-                localStorage.removeItem('rpg_last_date');
+            if(confirm('警告：這將會焚毀所有公會卷軸！確定要執行禁忌魔法嗎？')) {
+                if (window.StorageSystem) {
+                    window.StorageSystem.clear();
+                }
                 location.reload();
             }
         }
-        function exportData() {
-            const str = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.appData));
-            const a = document.createElement('a');
-            a.href = str; a.download = `冒險者公會備份_${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a); a.click(); a.remove();
-        }
-        function importData(input) {
-            const f = input.files[0]; if(!f) return;
-            const r = new FileReader();
-            r.onload = (e) => {
-                try {
-                    const d = JSON.parse(e.target.result);
-                    if(d.students && d.records) {
-                        window.appData = d; window.saveData();
-                        localStorage.removeItem('rpg_last_view'); localStorage.removeItem('rpg_last_date');
-                        init(); showToast("資料匯入成功！", "success");
-                    }
-                } catch(err){ alert("格式錯誤"); }
-            };
-            r.readAsText(f); input.value = '';
-        }
-
-        function showToast(message, type) {
-            const toast = document.getElementById("toast");
-            toast.textContent = message;
-            toast.className = "show";
-            if(type === "success") toast.classList.add("success");
-            else toast.classList.remove("success");
-            setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 2500);
-        }
-
-        // 初始化本地 App
-        init();
-
     </script>
 
     <!-- Cloud Module: Hardcoded Firebase Config for GitHub Pages -->
