@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>冒險者公會：冒險日誌 v7.8 (設定頁面修復版)</title>
+    <title>冒險者公會：冒險日誌 v8.0 (全域負傷名單版)</title>
     <style>
         /* * =========================================
          * 全域設定
@@ -80,6 +80,18 @@
             font-size: 1rem;
             color: #fff;
             border: 1px solid #8d6e63;
+        }
+
+        /* 版本號標籤 */
+        .version-badge {
+            font-size: 0.8rem;
+            background: var(--gold-accent);
+            color: #3e2723;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 900;
+            border: 1px solid #fff;
+            cursor: help;
         }
 
         /* 雲端按鈕樣式 */
@@ -326,6 +338,7 @@
         .modal-header { font-size: 1.3rem; font-weight: bold; color: #3e2723; border-bottom: 2px solid #8d6e63; padding-bottom: 10px; }
         .modal-body textarea, .modal-body input { width: 100%; padding: 10px; border: 2px solid #ccc; border-radius: 4px; font-size: 1rem; background: #fff; }
         .modal-footer { display: flex; justify-content: flex-end; gap: 10px; }
+        .changelog-list { list-style-type: disc; padding-left: 20px; color: #333; line-height: 1.6; }
 
         /* 魔藥蒐集介面 */
         .potion-list { display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; }
@@ -369,6 +382,8 @@
             <span id="current-date-display" class="hidden"></span>
             <button id="auth-btn" class="mode-local" onclick="handleAuth()">☁️ 登入雲端</button>
             <span id="storage-indicator"></span>
+            <span class="version-badge" title="目前版本">v8.0</span>
+            <button class="rpg-btn" style="margin-left: 5px; padding: 2px 8px;" onclick="openChangelog()">ℹ️</button>
         </h1>
         <div class="nav-buttons" id="day-nav-buttons" style="display:none;">
             <button class="rpg-btn" onclick="Sound.play('click'); showCalendar()">📖 回到冒險者日誌</button>
@@ -530,13 +545,12 @@
             { name: "陳大明", group: "第六組" }, { name: "張大華", group: "第六組" },
             { name: "林大明", group: "第七組" }, { name: "黃大華", group: "第七組" }
         ];
-        window.appData = { students: defaultStudents, records: {} };
+        window.appData = { students: defaultStudents, records: {}, dangerList: [] };
         let currentDate = "", viewMonth = new Date(), hasCelebrated = false;
         let currentModalType = null; 
         let currentEditingIndex = null; 
 
         function init() {
-            // DOMContentLoaded 確保元素存在
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', init);
                 return;
@@ -544,14 +558,12 @@
             try {
                 loadDataLocal();
                 
-                // 1. 預設為今天
                 const today = new Date();
                 const y = today.getFullYear();
                 const m = (today.getMonth() + 1).toString().padStart(2, '0');
                 const d = today.getDate().toString().padStart(2, '0');
                 const todayStr = `${y}-${m}-${d}`;
                 
-                // 2. 確保 viewMonth 也是今天
                 viewMonth = new Date();
 
                 const lastView = localStorage.getItem('rpg_last_view');
@@ -564,18 +576,19 @@
                     getDateRecord(todayStr); 
                 }
 
-                // 3. 優先載入月曆，再切換（如果有紀錄）
-                renderCalendar();
-                showCalendar();
-
                 if (lastView && lastView !== 'calendar-view') {
                     if(document.getElementById(lastView)) {
-                        // 短暫延遲確保 renderCalendar 完成
                         setTimeout(() => {
                             openDate(currentDate, false);
                             switchView(lastView);
                         }, 50);
+                    } else {
+                        renderCalendar();
+                        showCalendar();
                     }
+                } else {
+                    renderCalendar();
+                    showCalendar();
                 }
             } catch(e) {
                 console.error("Init failed, resetting...", e);
@@ -592,8 +605,9 @@
                     window.appData = parsed;
                     if (!window.appData.records) window.appData.records = {};
                     if (!window.appData.students) window.appData.students = defaultStudents;
+                    if (!window.appData.dangerList) window.appData.dangerList = [];
                 } catch(e) { 
-                    window.appData = { students: defaultStudents, records: {} }; 
+                    window.appData = { students: defaultStudents, records: {}, dangerList: [] }; 
                 }
             }
         }
@@ -606,15 +620,9 @@
         };
 
         function getDateRecord(dateStr) {
-            if (!dateStr) return { hwWrite: [], hwCorrect: [], status: {}, dangerList: [] };
+            if (!dateStr) return { hwWrite: [], hwCorrect: [], status: {} };
             if (!window.appData.records[dateStr]) {
-                window.appData.records[dateStr] = { hwWrite: [], hwCorrect: [], status: {}, dangerList: [] };
-                const yesterday = new Date(dateStr); yesterday.setDate(yesterday.getDate() - 1);
-                const yStr = yesterday.toISOString().split('T')[0];
-                if (window.appData.records[yStr] && window.appData.records[yStr].dangerList.length > 0) {
-                    // Deep copy
-                    window.appData.records[dateStr].dangerList = JSON.parse(JSON.stringify(window.appData.records[yStr].dangerList));
-                }
+                window.appData.records[dateStr] = { hwWrite: [], hwCorrect: [], status: {} };
             }
             return window.appData.records[dateStr];
         }
@@ -622,8 +630,6 @@
         function renderCalendar() {
             const grid = document.getElementById('calendar-grid');
             if(!grid) return;
-            
-            // 防呆：如果沒有資料，先補上
             if (!window.appData.records) window.appData.records = {};
 
             grid.innerHTML = '';
@@ -659,10 +665,10 @@
                         window.appData.students.forEach((s, sIdx) => {
                            rec.hwCorrect.forEach((_, hIdx) => { if (!rec.status[`${sIdx}_${hIdx}`]) allDone = false; });
                         });
-                        if (rec.dangerList.length > 0) allDone = false;
+                        if (window.appData.dangerList.length > 0) allDone = false;
                         if (allDone) html += `<div class="cal-status cal-safe">★ 全員討伐 ★</div>`;
                         else {
-                            const remaining = rec.dangerList.length;
+                            const remaining = window.appData.dangerList.length;
                             html += `<div class="cal-status cal-danger">⚠️ 未完成</div>`;
                             if(remaining > 0) html += `<div style="font-size:0.8rem; color:#c62828;">${remaining} 人負傷</div>`;
                         }
@@ -673,62 +679,39 @@
             }
         }
 
-        function changeMonth(delta) {
-            viewMonth.setMonth(viewMonth.getMonth() + delta);
-            renderCalendar();
-        }
-
-        function goToToday() {
-            viewMonth = new Date();
-            renderCalendar();
-        }
-
+        function changeMonth(delta) { viewMonth.setMonth(viewMonth.getMonth() + delta); renderCalendar(); }
+        function goToToday() { viewMonth = new Date(); renderCalendar(); }
         function showCalendar() {
             document.querySelectorAll('.panel').forEach(el => el.classList.remove('show'));
             document.getElementById('calendar-view').classList.add('show');
             document.getElementById('day-nav-buttons').style.display = 'none';
             document.getElementById('current-date-display').style.display = 'none';
-            renderCalendar(); 
-            
+            renderCalendar();
             localStorage.setItem('rpg_last_view', 'calendar-view');
         }
-
         function openDate(dateStr, autoSwitch = true) {
             currentDate = dateStr;
             getDateRecord(currentDate); 
-            
             localStorage.setItem('rpg_last_date', currentDate);
-
+            hasCelebrated = false;
             document.querySelectorAll('.panel').forEach(el => el.classList.remove('show'));
             document.getElementById('day-nav-buttons').style.display = 'flex';
             document.getElementById('current-date-display').textContent = currentDate;
             document.getElementById('current-date-display').style.display = 'inline';
-            
             if(document.getElementById('setting-date-label')) document.getElementById('setting-date-label').textContent = currentDate;
             if(document.getElementById('setting-date-label-2')) document.getElementById('setting-date-label-2').textContent = currentDate;
-
             if (autoSwitch) switchView('quest-board');
         }
-
-
-        // ================= 共用邏輯 =================
-        
         function switchView(viewId) {
             if(viewId === 'calendar-view') return showCalendar();
-            
             localStorage.setItem('rpg_last_view', viewId);
-
             document.querySelectorAll('.panel').forEach(el => el.classList.remove('show'));
             document.getElementById('calendar-view').classList.remove('show');
-            
             document.querySelectorAll('#day-nav-buttons .rpg-btn').forEach(el => el.classList.remove('active'));
-            
             document.getElementById(viewId).classList.add('show');
-            
             const btnMap = { 'quest-board': 1, 'adventurer-roster': 2, 'settings': 3 };
             const btn = document.querySelectorAll('#day-nav-buttons .rpg-btn')[btnMap[viewId]];
             if(btn) btn.classList.add('active');
-
             if(viewId === 'quest-board') renderQuestBoard();
             if(viewId === 'adventurer-roster') renderRoster();
             if(viewId === 'settings') renderSettingsInputs();
@@ -736,7 +719,6 @@
 
         function renderQuestBoard() {
             const rec = getDateRecord(currentDate);
-            
             const writeList = document.getElementById('hw-write-list');
             writeList.innerHTML = rec.hwWrite.length ? '' : '<li>本日無新委託！</li>';
             rec.hwWrite.forEach(hw => {
@@ -745,7 +727,6 @@
                 else li.textContent = hw;
                 writeList.appendChild(li);
             });
-
             const correctList = document.getElementById('hw-correct-list');
             correctList.innerHTML = rec.hwCorrect.length ? '' : '<li>目前非常安全</li>';
             rec.hwCorrect.forEach(hw => {
@@ -753,7 +734,6 @@
                 li.textContent = hw;
                 correctList.appendChild(li);
             });
-            
             document.getElementById('quest-date-1').textContent = `(${currentDate})`;
             document.getElementById('quest-date-2').textContent = `(${currentDate})`;
         }
@@ -762,39 +742,22 @@
             const rec = getDateRecord(currentDate);
             const container = document.getElementById('roster-container');
             container.innerHTML = '';
-
             if (window.appData.students.length === 0) {
-                container.innerHTML = '<div style="padding:20px; font-size:1.2rem; color:#8d6e63;">公會名冊空白，請至「設定」招募冒險者。</div>';
+                container.innerHTML = '<div style="padding:20px; font-size:1.2rem;">公會名冊空白，請至「設定」招募冒險者。</div>';
                 return;
             }
-
             const groups = {};
             window.appData.students.forEach((s, index) => {
                 const gName = s.group || '未分組';
                 if (!groups[gName]) groups[gName] = [];
                 groups[gName].push({ ...s, originalIndex: index });
             });
-
-            const groupNames = Object.keys(groups).sort((a, b) => {
-                if(a === '未分組') return 1;
-                if(b === '未分組') return -1;
-                return a.localeCompare(b, 'zh-TW', { numeric: true }); 
-            });
-
-            groupNames.forEach(gName => {
+            Object.keys(groups).sort((a, b) => (a==='未分組'?1:b==='未分組'?-1:a.localeCompare(b, 'zh-TW', {numeric:true}))).forEach(gName => {
                 const groupStudents = groups[gName];
-                const card = document.createElement('div');
-                card.className = 'group-card';
-                
-                // Drag events
+                const card = document.createElement('div'); card.className = 'group-card';
                 card.ondragover = (e) => { e.preventDefault(); card.classList.add('drag-over'); };
                 card.ondragleave = (e) => { card.classList.remove('drag-over'); };
-                card.ondrop = (e) => {
-                    e.preventDefault(); card.classList.remove('drag-over');
-                    const studentIndex = e.dataTransfer.getData('text/plain');
-                    if (studentIndex !== "") moveStudentToGroup(studentIndex, gName);
-                };
-
+                card.ondrop = (e) => { e.preventDefault(); card.classList.remove('drag-over'); moveStudentToGroup(e.dataTransfer.getData('text/plain'), gName); };
                 let isGroupAllClear = rec.hwCorrect.length > 0;
                 groupStudents.forEach(s => {
                     rec.hwCorrect.forEach((_, hIdx) => {
@@ -803,67 +766,34 @@
                     });
                 });
                 if(rec.hwCorrect.length === 0) isGroupAllClear = false;
-
-                // toggleGroupStatus
                 card.innerHTML = `<div class="group-header" onclick="toggleGroupStatus('${gName}')" title="點擊切換全組狀態"><span>${gName}</span><span class="group-bonus ${isGroupAllClear?'active':''}">小隊討伐魔物完畢</span></div>`;
-                
-                const listDiv = document.createElement('div');
-                listDiv.className = 'student-list';
-
+                const listDiv = document.createElement('div'); listDiv.className = 'student-list';
                 groupStudents.forEach(s => {
-                    const row = document.createElement('div');
-                    row.className = 'student-row';
-                    row.draggable = true;
-                    row.ondragstart = (e) => {
-                        e.dataTransfer.setData('text/plain', s.originalIndex);
-                        e.dataTransfer.effectAllowed = 'move';
-                    };
-
-                    const nameSpan = document.createElement('div');
-                    nameSpan.className = 's-name';
-                    nameSpan.textContent = s.name;
-                    row.appendChild(nameSpan);
-
-                    const taskContainer = document.createElement('div');
-                    taskContainer.className = 'task-container';
-
-                    if(rec.hwCorrect.length === 0) {
-                        taskContainer.innerHTML = '<span style="color:#aaa; font-size:0.8rem; font-style:italic;">無目標</span>';
-                    }
-
+                    const row = document.createElement('div'); row.className = 'student-row';
+                    row.draggable = true; row.ondragstart = (e) => e.dataTransfer.setData('text/plain', s.originalIndex);
+                    const nameSpan = document.createElement('div'); nameSpan.className = 's-name'; nameSpan.textContent = s.name; row.appendChild(nameSpan);
+                    const taskContainer = document.createElement('div'); taskContainer.className = 'task-container';
+                    if(rec.hwCorrect.length === 0) taskContainer.innerHTML = '<span style="color:#aaa; font-size:0.8rem; font-style:italic;">無目標</span>';
                     rec.hwCorrect.forEach((hw, hwIndex) => {
-                        const btn = document.createElement('div');
-                        btn.className = 'check-btn';
-                        btn.title = hw;
+                        const btn = document.createElement('div'); btn.className = 'check-btn'; btn.title = hw;
                         const key = `${s.originalIndex}_${hwIndex}`;
-                        
-                        if (rec.status[key]) {
-                            btn.classList.add('completed');
-                        }
-
+                        if (rec.status[key]) btn.classList.add('completed');
                         btn.innerHTML = `<span>${hw}</span>`;
                         btn.onclick = () => toggleStatus(s.originalIndex, hwIndex);
                         taskContainer.appendChild(btn);
                     });
-
-                    row.appendChild(taskContainer);
-                    listDiv.appendChild(row);
+                    row.appendChild(taskContainer); listDiv.appendChild(row);
                 });
-
-                card.appendChild(listDiv);
-                container.appendChild(card);
+                card.appendChild(listDiv); container.appendChild(card);
             });
             
-            // Danger Zone
-            const dangerCard = document.createElement('div');
-            dangerCard.className = 'group-card danger-zone-card';
+            const dangerCard = document.createElement('div'); dangerCard.className = 'group-card danger-zone-card';
             dangerCard.innerHTML = `<div class="danger-zone-header">⚠️ 負傷命危的冒險者名單</div>`;
-            const dangerListDiv = document.createElement('div');
-            dangerListDiv.className = 'danger-list';
-            if(rec.dangerList.length === 0) {
+            const dangerListDiv = document.createElement('div'); dangerListDiv.className = 'danger-list';
+            if(window.appData.dangerList.length === 0) {
                 dangerListDiv.innerHTML = '<div style="text-align:center; color:#999; padding:10px;">目前無人負傷</div>';
             } else {
-                rec.dangerList.forEach((item, idx) => {
+                window.appData.dangerList.forEach((item, idx) => {
                     const name = typeof item === 'object' ? item.name : item;
                     dangerListDiv.innerHTML += `<div class="danger-item" onclick="openDangerPotionModal(${idx})">
                         <span class="danger-item-name" title="${name}">${name}</span>
@@ -876,7 +806,6 @@
             container.appendChild(dangerCard);
         }
 
-        // 互動功能
         function moveStudentToGroup(studentIndex, newGroupName) {
             const student = window.appData.students[studentIndex];
             if (student && student.group !== newGroupName) {
@@ -891,55 +820,33 @@
             const rec = getDateRecord(currentDate);
             const key = `${sIdx}_${hIdx}`;
             rec.status[key] = !rec.status[key];
-            
-            if (rec.status[key]) {
-                Sound.play('success');
-            } else {
-                Sound.play('cancel');
-            }
-            
-            window.saveData();
-            renderRoster();
-            checkAllClear(); // 檢查是否全破
+            if (rec.status[key]) Sound.play('success'); else Sound.play('cancel');
+            window.saveData(); renderRoster(); checkAllClear();
         }
 
         function toggleGroupStatus(groupName) {
             const rec = getDateRecord(currentDate);
             if (rec.hwCorrect.length === 0) return;
-
             const targetStudentIndices = [];
-            window.appData.students.forEach((s, index) => {
-                if (s.group === groupName) targetStudentIndices.push(index);
-            });
-
+            window.appData.students.forEach((s, index) => { if (s.group === groupName) targetStudentIndices.push(index); });
             if (targetStudentIndices.length === 0) return;
-
             let anyIncomplete = false;
             targetStudentIndices.forEach(sIdx => {
-                rec.hwCorrect.forEach((_, hIdx) => {
-                    const key = `${sIdx}_${hIdx}`;
-                    if (!rec.status[key]) anyIncomplete = true;
-                });
+                rec.hwCorrect.forEach((_, hIdx) => { if (!rec.status[`${sIdx}_${hIdx}`]) anyIncomplete = true; });
             });
-
             const newState = anyIncomplete; 
             targetStudentIndices.forEach(sIdx => {
-                rec.hwCorrect.forEach((_, hIdx) => {
-                    rec.status[`${sIdx}_${hIdx}`] = newState;
-                });
+                rec.hwCorrect.forEach((_, hIdx) => { rec.status[`${sIdx}_${hIdx}`] = newState; });
             });
-
             Sound.play(newState ? 'success' : 'cancel');
-            window.saveData();
-            renderRoster();
-            checkAllClear();
+            window.saveData(); renderRoster(); checkAllClear();
         }
 
         function addToDanger() {
             const val = document.getElementById('danger-input').value.trim();
             if(val) {
                 Sound.play('click'); 
-                getDateRecord(currentDate).dangerList.push({ name: val, tasks: [] });
+                window.appData.dangerList.push({ name: val, tasks: [] });
                 window.saveData();
                 renderRoster();
                 setTimeout(() => document.getElementById('danger-input').focus(), 50);
@@ -948,17 +855,15 @@
 
         function removeFromDanger(idx) {
             Sound.play('click');
-            const rec = getDateRecord(currentDate);
-            rec.dangerList.splice(idx, 1);
+            window.appData.dangerList.splice(idx, 1);
             window.saveData();
             renderRoster();
             showToast("已將冒險者治癒！");
-            checkAllClear(); // 檢查是否全破 (治癒也算)
+            checkAllClear();
         }
 
         function handleDangerKeypress(e) { if(e.key === 'Enter') addToDanger(); }
 
-        // Modal Logic
         function openQuickEdit(type) {
             currentModalType = type;
             const modal = document.getElementById('common-modal');
@@ -985,9 +890,8 @@
         function openDangerPotionModal(idx) {
             currentModalType = 'potion';
             currentEditingIndex = idx;
-            const rec = getDateRecord(currentDate);
-            let item = rec.dangerList[idx];
-            if (typeof item === 'string') { item = { name: item, tasks: [] }; rec.dangerList[idx] = item; }
+            let item = window.appData.dangerList[idx];
+            if (typeof item === 'string') { item = { name: item, tasks: [] }; window.appData.dangerList[idx] = item; }
             if(!item.tasks) item.tasks = [];
 
             const modal = document.getElementById('common-modal');
@@ -1006,8 +910,7 @@
         }
 
         function renderPotionList(idx) {
-            const rec = getDateRecord(currentDate);
-            const item = rec.dangerList[idx];
+            const item = window.appData.dangerList[idx];
             const content = document.getElementById('modal-content');
             let html = `<div class="potion-list">`;
             let allDone = item.tasks.length > 0;
@@ -1029,8 +932,7 @@
         }
 
         function togglePotion(sIdx, tIdx) {
-            const rec = getDateRecord(currentDate);
-            const task = rec.dangerList[sIdx].tasks[tIdx];
+            const task = window.appData.dangerList[sIdx].tasks[tIdx];
             task.done = !task.done;
             if(task.done) Sound.play('success');
             window.saveData();
@@ -1038,16 +940,14 @@
         }
 
         function healStudent(idx) {
-            const rec = getDateRecord(currentDate);
-            const name = rec.dangerList[idx].name;
+            const name = window.appData.dangerList[idx].name;
             removeFromDanger(idx); 
             closeModal();
             showToast(`${name} 已成功治癒！`);
         }
 
         function editPotionList(idx) {
-            const rec = getDateRecord(currentDate);
-            const item = rec.dangerList[idx];
+            const item = window.appData.dangerList[idx];
             const taskText = item.tasks.map(t => typeof t === 'string' ? t : t.desc).join('\n');
             const modal = document.getElementById('common-modal');
             document.getElementById('modal-title').textContent = `編輯魔藥清單：${item.name}`;
@@ -1059,8 +959,7 @@
         }
 
         function savePotionList(idx) {
-            const rec = getDateRecord(currentDate);
-            const item = rec.dangerList[idx];
+            const item = window.appData.dangerList[idx];
             const text = document.getElementById('quick-edit-area').value;
             const lines = text.split('\n').map(t=>t.trim()).filter(t=>t);
             item.tasks = lines.map(desc => ({ desc: desc, done: false }));
@@ -1081,7 +980,6 @@
                 rec.hwWrite = val.split('\n').map(t=>t.trim()).filter(t=>t);
                 window.saveData();
                 const setInput = document.getElementById('input-hw-write'); if(setInput) setInput.value = rec.hwWrite.join('\n');
-                // Refresh only if current view is quest-board to avoid flicker
                 if(document.getElementById('quest-board').classList.contains('show')) renderQuestBoard();
             } else if (currentModalType === 'correct') {
                 const val = document.getElementById('quick-edit-area').value;
@@ -1104,7 +1002,7 @@
                     if(!rec.status[`${i}_${j}`]) { allDone = false; break; }
                 }
             }
-            if (rec.dangerList.length > 0) allDone = false;
+            if (window.appData.dangerList.length > 0) allDone = false;
             if (allDone) {
                 document.getElementById('celebration-overlay').classList.add('active');
                 Sound.play('victory');
@@ -1112,7 +1010,6 @@
             }
         }
         function closeCelebration() { document.getElementById('celebration-overlay').classList.remove('active'); }
-
 
         function saveSettings() {
             const rec = getDateRecord(currentDate);
@@ -1196,22 +1093,41 @@
             setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 2500);
         }
 
+        function openChangelog() {
+            const modal = document.getElementById('common-modal');
+            document.getElementById('modal-title').textContent = `版本更新說明`;
+            document.getElementById('modal-content').innerHTML = `
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <h3>v8.0 (全域負傷名單版)</h3>
+                    <ul class="changelog-list">
+                        <li><strong>全域負傷名單</strong>：負傷命危的冒險者名單現在是「全域」的，新增名單後會自動帶入每一天，直到該學生被治癒（移除）。老師不用再每天手動新增昨天的欠繳名單。</li>
+                        <li><strong>版本編號顯示</strong>：主頁上方新增了版本編號 (v8.0)，方便使用者確認當前版本。</li>
+                        <li><strong>更新說明按鈕</strong>：點擊標題旁的 ℹ️ 按鈕可查看詳細更新內容。</li>
+                    </ul>
+                    <hr style="margin: 15px 0; border-top: 1px dashed #8d6e63;">
+                    <h3>v7.x</h3>
+                    <ul class="changelog-list">
+                        <li>新增魔藥蒐集系統：點擊負傷名單可記錄具體欠繳作業。</li>
+                        <li>UI 優化：月曆改為週一開始、粗圓體日期、編輯提示位置調整。</li>
+                        <li>功能增強：小組標題一鍵完成/取消、藍色提醒字體。</li>
+                    </ul>
+                </div>
+            `;
+            document.getElementById('modal-footer').innerHTML = `
+                <button class="rpg-btn" onclick="closeModal()">關閉</button>
+            `;
+            modal.classList.add('active');
+        }
+
         // 設定頁面渲染與儲存
         function renderSettingsInputs() {
             const rec = getDateRecord(currentDate);
-            
-            // 防呆：如果學生名單是空的，嘗試從預設或其他地方抓（但這裡主要依賴 appData）
             const sText = (window.appData.students || []).map(s => `${s.name}, ${s.group}`).join('\n');
-            
-            // 防呆：確保 rec.hwWrite / hwCorrect 是陣列
             const wText = (rec.hwWrite || []).join('\n');
             const cText = (rec.hwCorrect || []).join('\n');
-
-            // 強制更新 DOM，即使元素不可見
             const sInput = document.getElementById('input-students');
             const wInput = document.getElementById('input-hw-write');
             const cInput = document.getElementById('input-hw-correct');
-
             if(sInput) sInput.value = sText;
             if(wInput) wInput.value = wText;
             if(cInput) cInput.value = cText;
@@ -1296,23 +1212,17 @@
             unsubscribeDoc = onSnapshot(docRef, (docSnap) => {
                 if (docSnap.exists()) {
                     const cloudData = docSnap.data();
-                    // 嚴格檢查雲端資料結構
-                    if(cloudData && Array.isArray(cloudData.students) && cloudData.records) {
+                    if(cloudData.students && cloudData.records) {
                         window.appData = cloudData;
-                        
-                        // 強制重新渲染所有可能受影響的元件
+                        if (!window.appData.dangerList) window.appData.dangerList = [];
                         window.refreshUI(); 
-                        
-                        // 特別強制刷新設定頁面，解決 "B電腦空白" 問題
                         renderSettingsInputs();
-
                         indicator.textContent = "☁️ 雲端已同步";
                         showToast("☁️ 資料已同步", "success");
                     } else {
                         console.warn("Cloud data invalid structure, skipping update");
                     }
                 } else {
-                    // 雲端無資料，上傳本地
                     saveToCloud();
                 }
             }, (error) => {
@@ -1321,11 +1231,8 @@
                 indicator.className = "mode-error";
             });
 
-            // 覆寫全域儲存函式
             window.saveData = function() {
-                // 本地備份
                 localStorage.setItem('rpgClassManager_v6', JSON.stringify(window.appData));
-                // 上傳雲端
                 saveToCloud();
             };
         }
