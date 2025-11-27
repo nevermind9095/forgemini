@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>冒險者公會：冒險日誌 v8.1 (介面微調版)</title>
+    <title>冒險者公會：冒險日誌 v8.2 (白屏修復版)</title>
     <style>
         /* * =========================================
          * 全域設定
@@ -80,7 +80,7 @@
             font-size: 1rem;
             color: #fff;
             border: 1px solid #8d6e63;
-            text-shadow: none; /* 修正模糊 */
+            text-shadow: none; 
         }
 
         /* 版本號標籤 */
@@ -93,7 +93,7 @@
             font-weight: 900;
             border: 1px solid #fff;
             cursor: help;
-            text-shadow: none; /* 修正模糊：移除繼承的黑色陰影 */
+            text-shadow: none;
         }
 
         /* 雲端按鈕樣式 */
@@ -107,7 +107,7 @@
             border: 2px solid rgba(255,255,255,0.5);
             transition: all 0.2s;
             display: flex; align-items: center; gap: 5px;
-            text-shadow: none; /* 修正模糊 */
+            text-shadow: none;
         }
         #auth-btn:hover { transform: scale(1.05); }
         .mode-local { background: #ff9800; color: #fff; }
@@ -117,7 +117,7 @@
             font-size: 0.8rem;
             margin-left: 5px;
             opacity: 0.8;
-            text-shadow: none; /* 修正模糊 */
+            text-shadow: none;
         }
 
         .nav-buttons { display: flex; gap: 8px; }
@@ -386,7 +386,7 @@
             <span id="current-date-display" class="hidden"></span>
             <button id="auth-btn" class="mode-local" onclick="handleAuth()">☁️ 登入雲端</button>
             <span id="storage-indicator"></span>
-            <span class="version-badge" title="目前版本">v8.1</span>
+            <span class="version-badge" title="目前版本">v8.2</span>
             <button class="rpg-btn" style="margin-left: 5px; padding: 2px 8px;" onclick="openChangelog()">ℹ️</button>
         </h1>
         <div class="nav-buttons" id="day-nav-buttons" style="display:none;">
@@ -555,7 +555,6 @@
         let currentEditingIndex = null; 
 
         function init() {
-            // DOMContentLoaded 確保元素存在
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', init);
                 return;
@@ -563,14 +562,12 @@
             try {
                 loadDataLocal();
                 
-                // 1. 預設為今天
                 const today = new Date();
                 const y = today.getFullYear();
                 const m = (today.getMonth() + 1).toString().padStart(2, '0');
                 const d = today.getDate().toString().padStart(2, '0');
                 const todayStr = `${y}-${m}-${d}`;
                 
-                // 2. 確保 viewMonth 也是今天
                 viewMonth = new Date();
 
                 const lastView = localStorage.getItem('rpg_last_view');
@@ -583,13 +580,12 @@
                     getDateRecord(todayStr); 
                 }
 
-                // 3. 優先載入月曆，再切換（如果有紀錄）
+                // 優先載入月曆
                 renderCalendar();
                 showCalendar();
 
                 if (lastView && lastView !== 'calendar-view') {
                     if(document.getElementById(lastView)) {
-                        // 短暫延遲確保 renderCalendar 完成
                         setTimeout(() => {
                             openDate(currentDate, false);
                             switchView(lastView);
@@ -709,7 +705,7 @@
             if (autoSwitch) switchView('quest-board');
         }
         function switchView(viewId) {
-            if(id === 'calendar-view') return showCalendar(); // Fixed bug: used id instead of viewId
+            if(viewId === 'calendar-view') return showCalendar();
             localStorage.setItem('rpg_last_view', viewId);
             document.querySelectorAll('.panel').forEach(el => el.classList.remove('show'));
             document.getElementById(viewId).classList.add('show');
@@ -796,7 +792,7 @@
             const dangerListDiv = document.createElement('div');
             dangerListDiv.className = 'danger-list';
             if(window.appData.dangerList.length === 0) {
-                dangerListDiv.innerHTML = '<div style="text-align:center; color:#999; padding:10px;">目前無人負傷</div>';
+                dangerListDiv.innerHTML = '<div style="text-align:center; color:#999; padding:10px;">目前無待蒐集的魔藥</div>';
             } else {
                 window.appData.dangerList.forEach((item, idx) => {
                     const name = typeof item === 'object' ? item.name : item;
@@ -825,8 +821,16 @@
             const rec = getDateRecord(currentDate);
             const key = `${sIdx}_${hIdx}`;
             rec.status[key] = !rec.status[key];
-            if (rec.status[key]) Sound.play('success'); else Sound.play('cancel');
-            window.saveData(); renderRoster(); checkAllClear();
+            
+            if (rec.status[key]) {
+                Sound.play('success');
+            } else {
+                Sound.play('cancel');
+            }
+            
+            window.saveData();
+            renderRoster();
+            checkAllClear(); 
         }
 
         function toggleGroupStatus(groupName) {
@@ -1051,26 +1055,39 @@
                 location.reload();
             }
         }
+
         function exportData() {
-            const str = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.appData));
-            const a = document.createElement('a');
-            a.href = str; a.download = `冒險者公會備份_${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a); a.click(); a.remove();
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.appData));
+            const downloadAnchorNode = document.createElement('a');
+            const dateStr = new Date().toISOString().split('T')[0];
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", `冒險者公會備份_${dateStr}.json`);
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+            showToast("備份檔案已下載！");
         }
+
         function importData(input) {
-            const f = input.files[0]; if(!f) return;
-            const r = new FileReader();
-            r.onload = (e) => {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
                 try {
-                    const d = JSON.parse(e.target.result);
-                    if(d.students && d.records) {
-                        window.appData = d; window.saveData();
-                        localStorage.removeItem('rpg_last_view'); localStorage.removeItem('rpg_last_date');
-                        init(); showToast("資料匯入成功！", "success");
+                    const contents = e.target.result;
+                    const parsedData = JSON.parse(contents);
+                    if (parsedData.students && parsedData.records) {
+                        window.appData = parsedData;
+                        window.saveData();
+                        localStorage.removeItem('rpg_last_view');
+                        localStorage.removeItem('rpg_last_date');
+                        init(); 
+                        showToast("資料匯入成功！", "success");
                     }
-                } catch(err){ alert("格式錯誤"); }
+                } catch (err) { alert("檔案讀取失敗"); }
             };
-            r.readAsText(f); input.value = '';
+            reader.readAsText(file);
+            input.value = '';
         }
 
         function showToast(message, type) {
@@ -1090,15 +1107,17 @@
             document.getElementById('modal-title').textContent = `版本更新說明`;
             document.getElementById('modal-content').innerHTML = `
                 <div style="max-height: 300px; overflow-y: auto;">
-                    <h3>v8.1 (介面微調版)</h3>
+                    <h3>v8.2 (白屏修復版)</h3>
+                    <ul class="changelog-list">
+                        <li><strong>嚴重錯誤修復</strong>：修正了切換頁面時可能導致畫面全白無法顯示的問題。</li>
+                    </ul>
+                    <h3>v8.1</h3>
                     <ul class="changelog-list">
                         <li><strong>介面優化</strong>：修正了上方版本編號文字模糊重疊的問題 (移除陰影)。</li>
                     </ul>
                     <h3>v8.0 (全域負傷名單版)</h3>
                     <ul class="changelog-list">
-                        <li><strong>全域負傷名單</strong>：負傷命危的冒險者名單現在是「全域」的，新增名單後會自動帶入每一天，直到該學生被治癒（移除）。老師不用再每天手動新增昨天的欠繳名單。</li>
-                        <li><strong>版本編號顯示</strong>：主頁上方新增了版本編號 (v8.1)，方便使用者確認當前版本。</li>
-                        <li><strong>更新說明按鈕</strong>：點擊標題旁的 ℹ️ 按鈕可查看詳細更新內容。</li>
+                        <li><strong>全域負傷名單</strong>：負傷命危的冒險者名單現在是「全域」的，新增名單後會自動帶入每一天，直到該學生被治癒（移除）。</li>
                     </ul>
                     <hr style="margin: 15px 0; border-top: 1px dashed #8d6e63;">
                     <h3>v7.x</h3>
