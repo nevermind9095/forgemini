@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>冒險者公會：冒險日誌 v8.2 (白屏修復版)</title>
+    <title>冒險者公會：冒險日誌 v8.3 (導覽修正版)</title>
     <style>
         /* * =========================================
          * 全域設定
@@ -386,7 +386,7 @@
             <span id="current-date-display" class="hidden"></span>
             <button id="auth-btn" class="mode-local" onclick="handleAuth()">☁️ 登入雲端</button>
             <span id="storage-indicator"></span>
-            <span class="version-badge" title="目前版本">v8.2</span>
+            <span class="version-badge" title="目前版本">v8.3</span>
             <button class="rpg-btn" style="margin-left: 5px; padding: 2px 8px;" onclick="openChangelog()">ℹ️</button>
         </h1>
         <div class="nav-buttons" id="day-nav-buttons" style="display:none;">
@@ -555,6 +555,7 @@
         let currentEditingIndex = null; 
 
         function init() {
+            // DOMContentLoaded 確保元素存在
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', init);
                 return;
@@ -562,12 +563,14 @@
             try {
                 loadDataLocal();
                 
+                // 1. 預設為今天
                 const today = new Date();
                 const y = today.getFullYear();
                 const m = (today.getMonth() + 1).toString().padStart(2, '0');
                 const d = today.getDate().toString().padStart(2, '0');
                 const todayStr = `${y}-${m}-${d}`;
                 
+                // 2. 確保 viewMonth 也是今天
                 viewMonth = new Date();
 
                 const lastView = localStorage.getItem('rpg_last_view');
@@ -580,12 +583,13 @@
                     getDateRecord(todayStr); 
                 }
 
-                // 優先載入月曆
+                // 3. 優先載入月曆，再切換（如果有紀錄）
                 renderCalendar();
                 showCalendar();
 
                 if (lastView && lastView !== 'calendar-view') {
                     if(document.getElementById(lastView)) {
+                        // 短暫延遲確保 renderCalendar 完成
                         setTimeout(() => {
                             openDate(currentDate, false);
                             switchView(lastView);
@@ -708,10 +712,18 @@
             if(viewId === 'calendar-view') return showCalendar();
             localStorage.setItem('rpg_last_view', viewId);
             document.querySelectorAll('.panel').forEach(el => el.classList.remove('show'));
-            document.getElementById(viewId).classList.add('show');
+            document.getElementById('calendar-view').classList.remove('show');
+            
+            // Remove active class
             document.querySelectorAll('#day-nav-buttons .rpg-btn').forEach(b => b.classList.remove('active'));
-            const idx = {'quest-board':0, 'adventurer-roster':1, 'settings':2}[viewId];
-            if(idx!==undefined) document.querySelectorAll('#day-nav-buttons .rpg-btn')[idx].classList.add('active');
+            
+            document.getElementById(viewId).classList.add('show');
+            
+            // Corrected button mapping indices (1, 2, 3)
+            const btnMap = { 'quest-board': 1, 'adventurer-roster': 2, 'settings': 3 };
+            const btn = document.querySelectorAll('#day-nav-buttons .rpg-btn')[btnMap[viewId]];
+            if(btn) btn.classList.add('active');
+            
             if(viewId === 'quest-board') renderQuestBoard();
             if(viewId === 'adventurer-roster') renderRoster();
             if(viewId === 'settings') renderSettingsInputs();
@@ -1020,6 +1032,7 @@
         }
         function closeCelebration() { document.getElementById('celebration-overlay').classList.remove('active'); }
 
+
         function saveSettings() {
             const rec = getDateRecord(currentDate);
             const rawS = document.getElementById('input-students').value;
@@ -1107,6 +1120,10 @@
             document.getElementById('modal-title').textContent = `版本更新說明`;
             document.getElementById('modal-content').innerHTML = `
                 <div style="max-height: 300px; overflow-y: auto;">
+                    <h3>v8.3 (導覽修正版)</h3>
+                    <ul class="changelog-list">
+                        <li><strong>介面修正</strong>：修正了點擊導覽列按鈕時，亮色區塊錯位的問題。</li>
+                    </ul>
                     <h3>v8.2 (白屏修復版)</h3>
                     <ul class="changelog-list">
                         <li><strong>嚴重錯誤修復</strong>：修正了切換頁面時可能導致畫面全白無法顯示的問題。</li>
