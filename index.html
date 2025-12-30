@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>冒險者公會：冒險日誌 v8.5 (同步邏輯修復版)</title>
+    <title>冒險者公會：冒險日誌 v8.6 (同步修正+日期切換版)</title>
     <style>
         /* * =========================================
          * 全域設定
@@ -73,21 +73,43 @@
             text-shadow: 2px 2px 0 #000;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 5px;
             letter-spacing: 1px;
         }
         
-        #current-date-display {
+        /* 日期顯示區塊與切換按鈕 */
+        .date-navigator {
+            display: flex;
+            align-items: center;
             background: rgba(0,0,0,0.3);
-            padding: 2px 8px;
             border-radius: 4px;
+            border: 1px solid #8d6e63;
+            overflow: hidden;
+            margin: 0 5px;
+        }
+        
+        #current-date-display {
+            padding: 2px 8px;
             font-family: monospace;
             letter-spacing: 0;
             font-size: 1rem;
             color: #fff;
-            border: 1px solid #8d6e63;
             text-shadow: none; 
+            min-width: 90px;
+            text-align: center;
         }
+
+        .date-nav-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: #ffcc80;
+            cursor: pointer;
+            padding: 2px 6px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+        .date-nav-btn:hover { background: rgba(255,255,255,0.3); }
 
         /* 版本號標籤 */
         .version-badge {
@@ -400,8 +422,12 @@
         <div class="header-left">
             <h1>
                 🛡️ 冒險者公會 
-                <span id="current-date-display" class="hidden"></span>
-                <span class="version-badge" title="目前版本">v8.5</span>
+                <span class="date-navigator">
+                    <button class="date-nav-btn" onclick="changeDate(-1)">◀</button>
+                    <span id="current-date-display" class="hidden"></span>
+                    <button class="date-nav-btn" onclick="changeDate(1)">▶</button>
+                </span>
+                <span class="version-badge" title="目前版本">v8.6</span>
                 <button class="rpg-btn" style="margin-left: 5px; padding: 2px 8px;" onclick="openChangelog()">ℹ️</button>
             </h1>
         </div>
@@ -682,12 +708,28 @@
         window.syncLocalToCloud = function() {
             // Force save to cloud
             if(window.CloudSaveFn) {
-                window.CloudSaveFn(window.appData);
+                window.CloudSaveFn(window.appData); // Explicit save call
                 showToast("📤 已上傳本地資料", "success");
+            } else if(window.performCloudUpload) {
+                window.performCloudUpload(); // Fallback if module function exposed this way
+                showToast("📤 已上傳本地資料", "success");
+            } else {
+                 // Should not happen if module loaded, but safety net
+                 console.warn("Cloud save function not ready");
             }
             document.getElementById('sync-modal').classList.remove('active');
             if(window.startRealtimeSync) window.startRealtimeSync();
         };
+        
+        function changeDate(delta) {
+             const d = new Date(currentDate);
+             d.setDate(d.getDate() + delta);
+             const y = d.getFullYear();
+             const m = (d.getMonth()+1).toString().padStart(2,'0');
+             const da = d.getDate().toString().padStart(2,'0');
+             openDate(`${y}-${m}-${da}`);
+             // Also need to check bounds? No, JS date handles overflow.
+        }
 
         function getDateRecord(dateStr) {
             if (!dateStr) return { hwWrite: [], hwCorrect: [], status: {}, dangerList: [] };
@@ -772,7 +814,8 @@
             document.querySelectorAll('.panel').forEach(el => el.classList.remove('show'));
             document.getElementById('day-nav-buttons').style.display = 'flex';
             document.getElementById('current-date-display').textContent = currentDate;
-            document.getElementById('current-date-display').style.display = 'inline';
+            document.getElementById('current-date-display').style.display = 'inline'; // Ensure visible
+            document.getElementById('current-date-display').classList.remove('hidden'); // Ensure visible
             if(document.getElementById('setting-date-label')) document.getElementById('setting-date-label').textContent = currentDate;
             if(document.getElementById('setting-date-label-2')) document.getElementById('setting-date-label-2').textContent = currentDate;
             if (autoSwitch) switchView('quest-board');
@@ -785,7 +828,18 @@
             
             document.querySelectorAll('#day-nav-buttons .rpg-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(viewId).classList.add('show');
-            const idx = {'quest-board':0, 'adventurer-roster':1, 'settings':2}[viewId];
+            
+            // Fix Index Mapping:
+            // 0: Back to Calendar (hidden/handled separately? No, it's in nav-buttons)
+            // Wait, HTML structure:
+            // <div class="nav-buttons">
+            //    <button>Back</button> [0]
+            //    <button>Quest</button> [1]
+            //    <button>Roster</button> [2]
+            //    <button>Settings</button> [3]
+            // </div>
+            const btnMap = { 'quest-board': 1, 'adventurer-roster': 2, 'settings': 3 };
+            const idx = btnMap[viewId];
             if(idx!==undefined) document.querySelectorAll('#day-nav-buttons .rpg-btn')[idx].classList.add('active');
             
             if(viewId === 'quest-board') renderQuestBoard();
@@ -1183,19 +1237,19 @@
             document.getElementById('modal-title').textContent = `版本更新說明`;
             document.getElementById('modal-content').innerHTML = `
                 <div style="max-height: 300px; overflow-y: auto;">
-                    <h3>v8.5 (同步修復版)</h3>
+                    <h3>v8.6 (同步修正+日期切換)</h3>
                     <ul class="changelog-list">
-                        <li><strong>雲端同步修復</strong>：修正了「上傳本機檔案」時資料被雲端空檔覆蓋的問題。</li>
-                        <li><strong>上傳指示</strong>：新增了明確的上傳狀態提示。</li>
+                        <li><strong>重要修正</strong>：解決上傳本機資料時被雲端覆蓋的問題。</li>
+                        <li><strong>新功能</strong>：新增「前一日/後一日」切換按鈕，不用回月曆也能換日期。</li>
+                        <li><strong>介面修正</strong>：修正導覽列按鈕亮燈錯位的問題。</li>
                     </ul>
-                    <h3>v8.4 (同步選擇版)</h3>
+                    <h3>v8.5</h3>
                     <ul class="changelog-list">
-                        <li><strong>雲端同步選擇</strong>：登入雲端時，新增視窗讓您選擇「下載」或「上傳」。</li>
-                        <li><strong>製作者名稱</strong>：新增作者署名。</li>
+                        <li><strong>同步修復</strong>：雲端同步邏輯重構。</li>
                     </ul>
-                    <h3>v8.0~v8.3</h3>
+                    <h3>v8.4</h3>
                     <ul class="changelog-list">
-                        <li>全域負傷名單、介面優化、白屏修復。</li>
+                        <li><strong>同步選擇</strong>：登入時可選擇下載或上傳。</li>
                     </ul>
                 </div>
             `;
@@ -1331,6 +1385,7 @@
                         // 確保 dangerList 存在
                         if (!window.appData.dangerList) window.appData.dangerList = [];
                         window.refreshUI(); 
+                        renderSettingsInputs();
                         indicator.textContent = "☁️ 雲端已同步";
                     }
                 }
@@ -1351,25 +1406,11 @@
             // 讓原本的 window.saveData 也呼叫雲端儲存
             window.saveData = function() {
                 localStorage.setItem('rpgClassManager_v6', JSON.stringify(window.appData));
-                window.CloudSaveFn(window.appData);
+                if(window.CloudSaveFn) window.CloudSaveFn(window.appData);
             };
         };
 
         // Explicit Cloud Upload Function exposed for syncLocalToCloud
-        window.uploadLocalToCloud = async function() {
-             if (!currentUser) return;
-             const docRef = doc(db, "users", currentUser.uid, "gameData", "main");
-             await setDoc(docRef, window.appData, { merge: true });
-             // After manual upload, start sync
-             window.startRealtimeSync();
-        };
-
-        // Hook up the global syncLocalToCloud to call this module function
-        // Wait, syncLocalToCloud is defined in the non-module script.
-        // We need to bridge them.
-        // Redefine syncLocalToCloud here to use module variables?
-        // Better: Make syncLocalToCloud call a function we attach to window here.
-        
         window.performCloudUpload = async function() {
              if (!currentUser) return;
              const docRef = doc(db, "users", currentUser.uid, "gameData", "main");
