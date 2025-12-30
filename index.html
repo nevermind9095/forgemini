@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>冒險者公會：冒險日誌 v8.3 (導覽修正版)</title>
+    <title>冒險者公會：冒險日誌 v8.4 (同步選擇版)</title>
     <style>
         /* * =========================================
          * 全域設定
@@ -61,6 +61,12 @@
             height: 60px;
         }
 
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
         h1 {
             margin: 0;
             font-size: 1.2rem;
@@ -93,6 +99,14 @@
             font-weight: 900;
             border: 1px solid #fff;
             cursor: help;
+            text-shadow: none;
+        }
+
+        .author-credit {
+            font-size: 0.9rem;
+            color: #ffcc80;
+            margin-left: 15px;
+            font-weight: normal;
             text-shadow: none;
         }
 
@@ -381,14 +395,19 @@
 <body>
 
     <header>
-        <h1>
-            🛡️ 冒險者公會 
-            <span id="current-date-display" class="hidden"></span>
+        <div class="header-left">
+            <h1>
+                🛡️ 冒險者公會 
+                <span id="current-date-display" class="hidden"></span>
+                <span class="version-badge" title="目前版本">v8.4</span>
+                <button class="rpg-btn" style="margin-left: 5px; padding: 2px 8px;" onclick="openChangelog()">ℹ️</button>
+            </h1>
+        </div>
+        <div style="display: flex; align-items: center;">
             <button id="auth-btn" class="mode-local" onclick="handleAuth()">☁️ 登入雲端</button>
             <span id="storage-indicator"></span>
-            <span class="version-badge" title="目前版本">v8.3</span>
-            <button class="rpg-btn" style="margin-left: 5px; padding: 2px 8px;" onclick="openChangelog()">ℹ️</button>
-        </h1>
+            <span class="author-credit">製作者：林庭均（吉米）老師</span>
+        </div>
         <div class="nav-buttons" id="day-nav-buttons" style="display:none;">
             <button class="rpg-btn" onclick="Sound.play('click'); showCalendar()">📖 回到冒險者日誌</button>
             <button class="rpg-btn active" onclick="Sound.play('click'); switchView('quest-board')">📜 委託清單</button>
@@ -398,6 +417,7 @@
     </header>
 
     <div id="app-container">
+        <!-- ... existing content ... -->
         
         <div id="calendar-view" class="panel show">
             <div class="calendar-header">
@@ -474,6 +494,21 @@
         </div>
     </div>
 
+    <!-- 同步選擇彈窗 -->
+    <div id="sync-modal" class="modal-overlay">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <div class="modal-header">☁️ 雲端同步選擇</div>
+            <div class="modal-body">
+                <p>偵測到雲端已有存檔，請問您希望如何處理？</p>
+                <p style="color: #666; font-size: 0.9em; margin-top: 5px;">(若您剛換電腦，建議選擇「下載」)</p>
+            </div>
+            <div class="modal-footer" style="flex-direction: column; gap: 10px;">
+                <button class="rpg-btn" onclick="syncCloudToLocal()">📥 下載雲端檔案 (覆蓋本機)</button>
+                <button class="rpg-btn" onclick="syncLocalToCloud()">📤 上傳本機檔案 (覆蓋雲端)</button>
+            </div>
+        </div>
+    </div>
+
     <div id="celebration-overlay" class="celebration-overlay" onclick="closeCelebration()">
         <div class="celebration-modal" onclick="event.stopPropagation()">
             <div class="close-celebration" onclick="closeCelebration()">×</div>
@@ -543,19 +578,18 @@
         const defaultStudents = [
             { name: "王小明", group: "第一組" }, { name: "李小華", group: "第一組" },
             { name: "張小美", group: "第二組" }, { name: "陳大文", group: "第二組" },
-            { name: "林小宏", group: "第三組" }, { name: "黃小芬", group: "第三組" },
-            { name: "陳小明", group: "第四組" }, { name: "李大華", group: "第四組" },
-            { name: "王大明", group: "第五組" }, { name: "蔡小虎", group: "第五組" },
-            { name: "陳大明", group: "第六組" }, { name: "張大華", group: "第六組" },
-            { name: "林大明", group: "第七組" }, { name: "黃大華", group: "第七組" }
+            { name: "林小宏", group: "第三組" }, { name: "黃小芬", group: "第三組" }
         ];
         window.appData = { students: defaultStudents, records: {}, dangerList: [] };
         let currentDate = "", viewMonth = new Date(), hasCelebrated = false;
         let currentModalType = null; 
         let currentEditingIndex = null; 
+        
+        // Sync Logic helpers
+        window.tempCloudData = null; // Temp store for sync modal
+        window.startRealtimeSync = null; // Function ref
 
         function init() {
-            // DOMContentLoaded 確保元素存在
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', init);
                 return;
@@ -563,14 +597,9 @@
             try {
                 loadDataLocal();
                 
-                // 1. 預設為今天
                 const today = new Date();
-                const y = today.getFullYear();
-                const m = (today.getMonth() + 1).toString().padStart(2, '0');
-                const d = today.getDate().toString().padStart(2, '0');
-                const todayStr = `${y}-${m}-${d}`;
+                const todayStr = `${today.getFullYear()}-${(today.getMonth()+1).toString().padStart(2,'0')}-${today.getDate().toString().padStart(2,'0')}`;
                 
-                // 2. 確保 viewMonth 也是今天
                 viewMonth = new Date();
 
                 const lastView = localStorage.getItem('rpg_last_view');
@@ -583,18 +612,19 @@
                     getDateRecord(todayStr); 
                 }
 
-                // 3. 優先載入月曆，再切換（如果有紀錄）
-                renderCalendar();
-                showCalendar();
-
                 if (lastView && lastView !== 'calendar-view') {
                     if(document.getElementById(lastView)) {
-                        // 短暫延遲確保 renderCalendar 完成
                         setTimeout(() => {
                             openDate(currentDate, false);
                             switchView(lastView);
                         }, 50);
+                    } else {
+                        renderCalendar();
+                        showCalendar();
                     }
+                } else {
+                    renderCalendar();
+                    showCalendar();
                 }
             } catch(e) {
                 console.error("Init failed, resetting...", e);
@@ -625,10 +655,51 @@
             } catch (e) {}
         };
 
+        window.refreshUI = function() {
+            const currentView = document.querySelector('.panel.show').id;
+            if (currentView === 'calendar-view') renderCalendar();
+            else {
+                renderCalendar();
+                if(currentView === 'quest-board') renderQuestBoard();
+                if(currentView === 'adventurer-roster') renderRoster();
+                if(currentView === 'settings') renderSettingsInputs();
+            }
+        };
+
+        // Sync Modal Actions
+        window.syncCloudToLocal = function() {
+            if (window.tempCloudData) {
+                window.appData = window.tempCloudData;
+                window.saveData(); // Save to local storage
+                window.refreshUI();
+                showToast("📥 已下載雲端資料", "success");
+            }
+            document.getElementById('sync-modal').classList.remove('active');
+            if(window.startRealtimeSync) window.startRealtimeSync();
+        };
+
+        window.syncLocalToCloud = function() {
+            // Upload current local data to cloud
+            // We need to trigger the saveToCloud function from the module.
+            // Since modules are isolated, we use a global flag or callback.
+            // But wait, the module can expose a function.
+            if(window.CloudSaveFn) {
+                window.CloudSaveFn(window.appData);
+                showToast("📤 已上傳本地資料", "success");
+            }
+            document.getElementById('sync-modal').classList.remove('active');
+            if(window.startRealtimeSync) window.startRealtimeSync();
+        };
+
         function getDateRecord(dateStr) {
-            if (!dateStr) return { hwWrite: [], hwCorrect: [], status: {} };
+            if (!dateStr) return { hwWrite: [], hwCorrect: [], status: {}, dangerList: [] };
             if (!window.appData.records[dateStr]) {
-                window.appData.records[dateStr] = { hwWrite: [], hwCorrect: [], status: {} };
+                window.appData.records[dateStr] = { hwWrite: [], hwCorrect: [], status: {}, dangerList: [] };
+                const yesterday = new Date(dateStr); yesterday.setDate(yesterday.getDate() - 1);
+                const yStr = yesterday.toISOString().split('T')[0];
+                if (window.appData.records[yStr] && window.appData.records[yStr].dangerList.length > 0) {
+                    window.appData.records[dateStr].dangerList = JSON.parse(JSON.stringify(window.appData.records[yStr].dangerList));
+                }
             }
             return window.appData.records[dateStr];
         }
@@ -714,15 +785,10 @@
             document.querySelectorAll('.panel').forEach(el => el.classList.remove('show'));
             document.getElementById('calendar-view').classList.remove('show');
             
-            // Remove active class
             document.querySelectorAll('#day-nav-buttons .rpg-btn').forEach(b => b.classList.remove('active'));
-            
             document.getElementById(viewId).classList.add('show');
-            
-            // Corrected button mapping indices (1, 2, 3)
-            const btnMap = { 'quest-board': 1, 'adventurer-roster': 2, 'settings': 3 };
-            const btn = document.querySelectorAll('#day-nav-buttons .rpg-btn')[btnMap[viewId]];
-            if(btn) btn.classList.add('active');
+            const idx = {'quest-board':0, 'adventurer-roster':1, 'settings':2}[viewId];
+            if(idx!==undefined) document.querySelectorAll('#day-nav-buttons .rpg-btn')[idx].classList.add('active');
             
             if(viewId === 'quest-board') renderQuestBoard();
             if(viewId === 'adventurer-roster') renderRoster();
@@ -833,16 +899,8 @@
             const rec = getDateRecord(currentDate);
             const key = `${sIdx}_${hIdx}`;
             rec.status[key] = !rec.status[key];
-            
-            if (rec.status[key]) {
-                Sound.play('success');
-            } else {
-                Sound.play('cancel');
-            }
-            
-            window.saveData();
-            renderRoster();
-            checkAllClear(); 
+            if (rec.status[key]) Sound.play('success'); else Sound.play('cancel');
+            window.saveData(); renderRoster(); checkAllClear(); 
         }
 
         function toggleGroupStatus(groupName) {
@@ -1032,7 +1090,6 @@
         }
         function closeCelebration() { document.getElementById('celebration-overlay').classList.remove('active'); }
 
-
         function saveSettings() {
             const rec = getDateRecord(currentDate);
             const rawS = document.getElementById('input-students').value;
@@ -1120,6 +1177,11 @@
             document.getElementById('modal-title').textContent = `版本更新說明`;
             document.getElementById('modal-content').innerHTML = `
                 <div style="max-height: 300px; overflow-y: auto;">
+                    <h3>v8.4 (同步選擇版)</h3>
+                    <ul class="changelog-list">
+                        <li><strong>雲端同步選擇</strong>：登入雲端時，新增視窗讓您選擇「下載」或「上傳」，避免資料誤蓋。</li>
+                        <li><strong>製作者名稱</strong>：新增作者署名。</li>
+                    </ul>
                     <h3>v8.3 (導覽修正版)</h3>
                     <ul class="changelog-list">
                         <li><strong>介面修正</strong>：修正了點擊導覽列按鈕時，亮色區塊錯位的問題。</li>
@@ -1128,20 +1190,9 @@
                     <ul class="changelog-list">
                         <li><strong>嚴重錯誤修復</strong>：修正了切換頁面時可能導致畫面全白無法顯示的問題。</li>
                     </ul>
-                    <h3>v8.1</h3>
-                    <ul class="changelog-list">
-                        <li><strong>介面優化</strong>：修正了上方版本編號文字模糊重疊的問題 (移除陰影)。</li>
-                    </ul>
                     <h3>v8.0 (全域負傷名單版)</h3>
                     <ul class="changelog-list">
                         <li><strong>全域負傷名單</strong>：負傷命危的冒險者名單現在是「全域」的，新增名單後會自動帶入每一天，直到該學生被治癒（移除）。</li>
-                    </ul>
-                    <hr style="margin: 15px 0; border-top: 1px dashed #8d6e63;">
-                    <h3>v7.x</h3>
-                    <ul class="changelog-list">
-                        <li>新增魔藥蒐集系統：點擊負傷名單可記錄具體欠繳作業。</li>
-                        <li>UI 優化：月曆改為週一開始、粗圓體日期、編輯提示位置調整。</li>
-                        <li>功能增強：小組標題一鍵完成/取消、藍色提醒字體。</li>
                     </ul>
                 </div>
             `;
@@ -1223,7 +1274,8 @@
                 btn.title = "點擊以登出";
                 indicator.style.display = "inline";
                 
-                startSync(user.uid);
+                // 啟動同步流程，這裡不再直接 startSync，而是先檢查
+                checkCloudData(user.uid);
                 
             } else {
                 currentUser = null;
@@ -1234,56 +1286,72 @@
             }
         });
 
-        // 5. 資料同步核心
-        function startSync(userId) {
+        // 檢查雲端資料
+        async function checkCloudData(userId) {
             const docRef = doc(db, "users", userId, "gameData", "main");
             const indicator = document.getElementById('storage-indicator');
+            indicator.textContent = "檢查雲端存檔...";
+
+            try {
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    // 雲端有資料 -> 跳出詢問視窗
+                    window.tempCloudData = docSnap.data();
+                    document.getElementById('sync-modal').classList.add('active');
+                } else {
+                    // 雲端無資料 -> 直接上傳本地資料並開始同步
+                    console.log("雲端無資料，自動上傳本地資料");
+                    window.syncLocalToCloud(); // 這會呼叫 saveToCloud 並啟動監聽
+                }
+            } catch (e) {
+                console.error("檢查雲端失敗", e);
+                indicator.textContent = "⚠️ 連線錯誤";
+            }
+        }
+
+        // 暴露給全域使用的啟動同步函式
+        window.startRealtimeSync = function() {
+            if (!currentUser) return;
+            const userId = currentUser.uid;
+            const docRef = doc(db, "users", userId, "gameData", "main");
+            const indicator = document.getElementById('storage-indicator');
+            
             indicator.textContent = "同步中...";
             indicator.className = "mode-cloud";
 
             unsubscribeDoc = onSnapshot(docRef, (docSnap) => {
                 if (docSnap.exists()) {
                     const cloudData = docSnap.data();
-                    if(cloudData.students && cloudData.records) {
+                    // 這裡做個簡單檢查，避免空資料覆蓋
+                    if(cloudData.students) {
                         window.appData = cloudData;
+                        // 確保 dangerList 存在
                         if (!window.appData.dangerList) window.appData.dangerList = [];
                         window.refreshUI(); 
-                        renderSettingsInputs();
                         indicator.textContent = "☁️ 雲端已同步";
-                        showToast("☁️ 資料已同步", "success");
-                    } else {
-                        console.warn("Cloud data invalid structure, skipping update");
                     }
-                } else {
-                    saveToCloud();
                 }
-            }, (error) => {
-                console.error("Cloud sync error:", error);
-                indicator.textContent = "⚠️ 同步失敗";
-                indicator.className = "mode-error";
             });
 
+            // 覆寫 Save: 同步存雲端
+            window.CloudSaveFn = async (data) => {
+                 try {
+                    indicator.textContent = "上傳中...";
+                    await setDoc(docRef, data, { merge: true });
+                    indicator.textContent = "☁️ 雲端已同步";
+                } catch (e) {
+                    console.error("上傳失敗", e);
+                    indicator.textContent = "⚠️ 上傳失敗";
+                }
+            };
+
+            // 讓原本的 window.saveData 也呼叫雲端儲存
             window.saveData = function() {
                 localStorage.setItem('rpgClassManager_v6', JSON.stringify(window.appData));
-                saveToCloud();
+                window.CloudSaveFn(window.appData);
             };
-        }
+        };
 
-        async function saveToCloud() {
-            if (!currentUser) return;
-            const docRef = doc(db, "users", currentUser.uid, "gameData", "main");
-            const indicator = document.getElementById('storage-indicator');
-            
-            try {
-                indicator.textContent = "上傳中...";
-                await setDoc(docRef, window.appData, { merge: true });
-                indicator.textContent = "☁️ 雲端已同步";
-            } catch (e) {
-                console.error("上傳失敗", e);
-                indicator.textContent = "⚠️ 上傳失敗";
-                indicator.className = "mode-error";
-            }
-        }
     </script>
 </body>
 </html>
